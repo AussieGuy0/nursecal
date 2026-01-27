@@ -3,6 +3,8 @@ import { Header } from './components/Header';
 import { Calendar } from './components/Calendar';
 import { LabelPicker } from './components/LabelPicker';
 import { LabelManager } from './components/LabelManager';
+import { AuthForm } from './components/AuthForm';
+import { useAuth } from './hooks/useAuth';
 import { useLabels } from './hooks/useLabels';
 import { useShifts } from './hooks/useShifts';
 
@@ -13,8 +15,9 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
 
-  const { labels, addLabel, updateLabel, deleteLabel } = useLabels();
-  const { shifts, setShift, clearShift, getShift } = useShifts();
+  const { authenticated, loading: authLoading, login, register, logout, email } = useAuth();
+  const { labels, addLabel, updateLabel, deleteLabel, loading: labelsLoading } = useLabels(authenticated);
+  const { shifts, setShift, clearShift, getShift, loading: shiftsLoading } = useShifts(authenticated);
 
   const handlePrevMonth = () => {
     if (month === 0) {
@@ -52,6 +55,23 @@ export default function App() {
     }
   };
 
+  // Show loading spinner while checking auth
+  if (authLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-gray-600">Loading...</div>
+      </div>
+    );
+  }
+
+  // Show auth form if not authenticated
+  if (!authenticated) {
+    return <AuthForm onLogin={login} onRegister={register} />;
+  }
+
+  // Show loading state while fetching data
+  const isLoading = labelsLoading || shiftsLoading;
+
   return (
     <div className="h-screen flex flex-col">
       <Header
@@ -60,15 +80,23 @@ export default function App() {
         onPrevMonth={handlePrevMonth}
         onNextMonth={handleNextMonth}
         onOpenSettings={() => setShowSettings(true)}
+        email={email}
+        onLogout={logout}
       />
 
-      <Calendar
-        year={year}
-        month={month}
-        shifts={shifts}
-        labels={labels}
-        onDayTap={handleDayTap}
-      />
+      {isLoading ? (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-gray-600">Loading your calendar...</div>
+        </div>
+      ) : (
+        <Calendar
+          year={year}
+          month={month}
+          shifts={shifts}
+          labels={labels}
+          onDayTap={handleDayTap}
+        />
+      )}
 
       {selectedDate && (
         <LabelPicker

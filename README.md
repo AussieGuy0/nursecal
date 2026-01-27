@@ -8,22 +8,35 @@ A PWA for nurses to track shifts on a monthly calendar. Tap a day to assign a cu
 - Tap days to assign shift labels
 - Custom labels with colors
 - Offline support (PWA)
-- Data persists in localStorage
+- User authentication (email/password)
+- Server-side data persistence (SQLite)
+
+## Tech Stack
+
+- **Frontend:** React, TypeScript, Vite, Tailwind CSS, vite-plugin-pwa
+- **Backend:** Elysia (Bun), SQLite, JWT authentication
 
 ## Development
 
+Start the backend server:
 ```bash
 bun install
 bun run dev
 ```
 
-## Build
-
+For frontend hot-reload, run in a separate terminal:
 ```bash
-bun run build
-bun run preview
+bun run dev:frontend
 ```
 
-## Tech Stack
+Then open http://localhost:5173
 
-React, TypeScript, Vite, Tailwind CSS, vite-plugin-pwa
+## Production
+
+Build and run:
+```bash
+bun run build
+bun run start
+```
+
+Then open http://localhost:3123

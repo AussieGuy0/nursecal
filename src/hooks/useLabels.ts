@@ -1,53 +1,80 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Label } from '../types';
 
-const STORAGE_KEY = 'nursecal-labels';
+export function useLabels(authenticated: boolean) {
+  const [labels, setLabels] = useState<Label[]>([]);
+  const [loading, setLoading] = useState(true);
 
-const DEFAULT_LABELS: Label[] = [
-  { id: '1', shortCode: 'E', name: 'Early Shift', color: '#22c55e' },
-  { id: '2', shortCode: 'L', name: 'Late Shift', color: '#3b82f6' },
-  { id: '3', shortCode: 'N', name: 'Night Shift', color: '#8b5cf6' },
-];
-
-function generateId(): string {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2);
-}
-
-export function useLabels() {
-  const [labels, setLabels] = useState<Label[]>(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        return JSON.parse(stored);
-      } catch {
-        return DEFAULT_LABELS;
-      }
+  // Fetch labels from API
+  const fetchLabels = useCallback(async () => {
+    if (!authenticated) {
+      setLabels([]);
+      setLoading(false);
+      return;
     }
-    return DEFAULT_LABELS;
-  });
+
+    try {
+      const res = await fetch('/api/labels');
+      if (res.ok) {
+        const data = await res.json();
+        setLabels(data);
+      }
+    } catch {
+      console.error('Failed to fetch labels');
+    } finally {
+      setLoading(false);
+    }
+  }, [authenticated]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(labels));
-  }, [labels]);
+    fetchLabels();
+  }, [fetchLabels]);
 
-  const addLabel = (shortCode: string, name: string, color: string) => {
-    const newLabel: Label = {
-      id: generateId(),
-      shortCode,
-      name,
-      color
-    };
-    setLabels(prev => [...prev, newLabel]);
+  const addLabel = async (shortCode: string, name: string, color: string) => {
+    try {
+      const res = await fetch('/api/labels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shortCode, name, color }),
+      });
+      if (res.ok) {
+        const newLabel = await res.json();
+        setLabels(prev => [...prev, newLabel]);
+      }
+    } catch {
+      console.error('Failed to add label');
+    }
   };
 
-  const updateLabel = (id: string, updates: Partial<Omit<Label, 'id'>>) => {
-    setLabels(prev => prev.map(label =>
-      label.id === id ? { ...label, ...updates } : label
-    ));
+  const updateLabel = async (id: string, updates: Partial<Omit<Label, 'id'>>) => {
+    try {
+      const res = await fetch(`/api/labels/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      if (res.ok) {
+        const updatedLabel = await res.json();
+        setLabels(prev => prev.map(label =>
+          label.id === id ? updatedLabel : label
+        ));
+      }
+    } catch {
+      console.error('Failed to update label');
+    }
   };
 
-  const deleteLabel = (id: string) => {
-    setLabels(prev => prev.filter(label => label.id !== id));
+  const deleteLabel = async (id: string) => {
+    try {
+      const res = await fetch(`/api/labels/${id}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        setLabels(prev => prev.filter(label => label.id !== id));
+      }
+    } catch {
+      console.error('Failed to delete label');
+    }
   };
 
   const getLabelById = (id: string): Label | undefined => {
@@ -56,9 +83,11 @@ export function useLabels() {
 
   return {
     labels,
+    loading,
     addLabel,
     updateLabel,
     deleteLabel,
-    getLabelById
+    getLabelById,
+    refetch: fetchLabels,
   };
 }
