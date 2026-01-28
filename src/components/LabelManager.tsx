@@ -10,8 +10,14 @@ interface LabelManagerProps {
 }
 
 const PRESET_COLORS = [
-  '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6',
-  '#3b82f6', '#6366f1', '#8b5cf6', '#ec4899', '#6b7280'
+  // Row 1: Reds, oranges, yellows
+  '#ef4444', '#dc2626', '#f97316', '#ea580c', '#eab308', '#ca8a04',
+  // Row 2: Greens, teals, cyans
+  '#22c55e', '#16a34a', '#14b8a6', '#0d9488', '#06b6d4', '#0891b2',
+  // Row 3: Blues, indigos, purples
+  '#3b82f6', '#2563eb', '#6366f1', '#4f46e5', '#8b5cf6', '#7c3aed',
+  // Row 4: Pinks, roses, neutrals
+  '#ec4899', '#db2777', '#f43f5e', '#e11d48', '#6b7280', '#374151'
 ];
 
 export function LabelManager({ labels, onAdd, onUpdate, onDelete, onClose }: LabelManagerProps) {
