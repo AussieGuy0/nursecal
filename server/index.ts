@@ -351,7 +351,7 @@ const app = new Elysia()
     },
     {
       body: t.Object({
-        shortCode: t.String({ minLength: 1, maxLength: 3 }),
+        shortCode: t.String({ minLength: 1, maxLength: 4 }),
         name: t.String({ minLength: 1 }),
         color: t.String({ pattern: '^#[0-9a-fA-F]{6}$' }),
       }),
@@ -393,7 +393,7 @@ const app = new Elysia()
         id: t.String(),
       }),
       body: t.Object({
-        shortCode: t.Optional(t.String({ minLength: 1, maxLength: 3 })),
+        shortCode: t.Optional(t.String({ minLength: 1, maxLength: 4 })),
         name: t.Optional(t.String({ minLength: 1 })),
         color: t.Optional(t.String({ pattern: '^#[0-9a-fA-F]{6}$' })),
       }),

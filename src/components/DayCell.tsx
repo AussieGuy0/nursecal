@@ -32,7 +32,7 @@ export function DayCell({ day, dateKey, isCurrentMonth, label, isToday, onTap }:
 
       {label && (
         <span
-          className="mt-1 px-1.5 py-0.5 text-xs font-bold rounded text-white"
+          className="mt-1 px-2 py-1 text-sm font-bold rounded text-white"
           style={{ backgroundColor: label.color }}
         >
           {label.shortCode}
