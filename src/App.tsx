@@ -37,6 +37,12 @@ export default function App() {
     }
   };
 
+  const handleToday = () => {
+    const now = new Date();
+    setYear(now.getFullYear());
+    setMonth(now.getMonth());
+  };
+
   const handleDayTap = (dateKey: string) => {
     setSelectedDate(dateKey);
   };
@@ -79,6 +85,7 @@ export default function App() {
         month={month}
         onPrevMonth={handlePrevMonth}
         onNextMonth={handleNextMonth}
+        onToday={handleToday}
         onOpenSettings={() => setShowSettings(true)}
         email={email}
         onLogout={logout}

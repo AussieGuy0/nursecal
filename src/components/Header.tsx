@@ -5,12 +5,13 @@ interface HeaderProps {
   month: number;
   onPrevMonth: () => void;
   onNextMonth: () => void;
+  onToday: () => void;
   onOpenSettings: () => void;
   email?: string | null;
   onLogout?: () => void;
 }
 
-export function Header({ year, month, onPrevMonth, onNextMonth, onOpenSettings, email, onLogout }: HeaderProps) {
+export function Header({ year, month, onPrevMonth, onNextMonth, onToday, onOpenSettings, email, onLogout }: HeaderProps) {
   return (
     <header className="bg-white border-b border-gray-200">
       <div className="flex items-center justify-between px-4 py-3">
@@ -24,9 +25,18 @@ export function Header({ year, month, onPrevMonth, onNextMonth, onOpenSettings, 
           </svg>
         </button>
 
-        <h1 className="text-lg font-semibold">
-          {getMonthName(month)} {year}
-        </h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-lg font-semibold">
+            {getMonthName(month)} {year}
+          </h1>
+          <button
+            onClick={onToday}
+            className="px-3 py-1 text-xs font-medium text-blue-600 border border-blue-300 hover:bg-blue-50 active:bg-blue-100 rounded-full transition-colors"
+            aria-label="Go to today"
+          >
+            Today
+          </button>
+        </div>
 
         <div className="flex items-center gap-2">
           <button
