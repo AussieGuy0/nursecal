@@ -1,3 +1,4 @@
+import { useRef, useCallback } from 'react';
 import { DayCell } from './DayCell';
 import { getCalendarDays, formatDateKey } from '../utils/calendar';
 import { Label } from '../types';
@@ -8,21 +9,56 @@ interface CalendarProps {
   shifts: { [date: string]: string };
   labels: Label[];
   onDayTap: (dateKey: string) => void;
+  onSwipeLeft?: () => void;
+  onSwipeRight?: () => void;
 }
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export function Calendar({ year, month, shifts, labels, onDayTap }: CalendarProps) {
+const SWIPE_THRESHOLD = 50;
+
+export function Calendar({ year, month, shifts, labels, onDayTap, onSwipeLeft, onSwipeRight }: CalendarProps) {
   const days = getCalendarDays(year, month);
   const today = new Date();
   const todayKey = formatDateKey(today.getFullYear(), today.getMonth(), today.getDate());
+
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  }, []);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+
+    const deltaX = e.changedTouches[0].clientX - touchStartX.current;
+    const deltaY = e.changedTouches[0].clientY - touchStartY.current;
+
+    // Only trigger if horizontal swipe is dominant and exceeds threshold
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > SWIPE_THRESHOLD) {
+      if (deltaX > 0) {
+        onSwipeRight?.();
+      } else {
+        onSwipeLeft?.();
+      }
+    }
+
+    touchStartX.current = null;
+    touchStartY.current = null;
+  }, [onSwipeLeft, onSwipeRight]);
 
   const getLabelById = (id: string): Label | undefined => {
     return labels.find(l => l.id === id);
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-white">
+    <div
+      className="flex-1 flex flex-col bg-white"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       {/* Weekday headers */}
       <div className="grid grid-cols-7 border-b border-gray-200">
         {WEEKDAYS.map(day => (

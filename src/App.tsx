@@ -102,6 +102,8 @@ export default function App() {
           shifts={shifts}
           labels={labels}
           onDayTap={handleDayTap}
+          onSwipeLeft={handleNextMonth}
+          onSwipeRight={handlePrevMonth}
         />
       )}
 
