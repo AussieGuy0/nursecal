@@ -59,9 +59,9 @@ export function useAuth() {
     }
   };
 
-  const register = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const registerInitiate = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const res = await fetch('/api/auth/register', {
+      const res = await fetch('/api/auth/register/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -70,6 +70,25 @@ export function useAuth() {
 
       if (!res.ok) {
         return { success: false, error: data.error || 'Registration failed' };
+      }
+
+      return { success: true };
+    } catch {
+      return { success: false, error: 'Network error' };
+    }
+  };
+
+  const registerVerify = async (email: string, code: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await fetch('/api/auth/register/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        return { success: false, error: data.error || 'Verification failed' };
       }
 
       setAuthState({
@@ -99,7 +118,8 @@ export function useAuth() {
   return {
     ...authState,
     login,
-    register,
+    registerInitiate,
+    registerVerify,
     logout,
   };
 }

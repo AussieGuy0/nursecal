@@ -1,6 +1,6 @@
 import { Database } from 'bun:sqlite';
 
-const DB_PATH = './nursecal.db';
+const DB_PATH = process.env.NODE_ENV === 'production' ? '/app/data/nursecal.db' : './nursecal.db';
 
 export const db = new Database(DB_PATH);
 
@@ -37,6 +37,16 @@ function initSchema() {
       user_id INTEGER PRIMARY KEY,
       shifts TEXT NOT NULL DEFAULT '{}',
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
+  // One-time codes for registration verification
+  db.run(`
+    CREATE TABLE IF NOT EXISTS otc (
+      email TEXT PRIMARY KEY,
+      code TEXT NOT NULL,
+      password_hash TEXT NOT NULL,
+      expires_at INTEGER NOT NULL
     )
   `);
 }

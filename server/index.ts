@@ -1,14 +1,50 @@
 import { Elysia, t } from 'elysia';
 import { jwt } from '@elysiajs/jwt';
-import { staticPlugin } from '@elysiajs/static';
-import { db, initDB, userQueries, labelQueries, calendarQueries, generateId } from './db';
+import { openapi, fromTypes } from '@elysiajs/openapi';
+import { initDB, userQueries, labelQueries, calendarQueries, generateId } from './db';
 import { DEFAULT_LABELS, type JWTPayload, type LabelResponse, type ShiftMap } from './types';
+import { generateOTC, maskEmail, storeOTC, getOTC, deleteOTC } from './otc';
 
 // Initialize database
 initDB();
 
 const PORT = process.env.PORT || 3123;
 const JWT_SECRET = process.env.JWT_SECRET || 'nursecal-dev-secret-change-in-production';
+
+// Rate limiting configuration
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const RATE_LIMIT_MAX_ATTEMPTS = 5;
+
+// In-memory rate limit store: IP -> { count, resetTime }
+const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+
+function checkRateLimit(ip: string): { allowed: boolean; retryAfterSeconds?: number } {
+  const now = Date.now();
+  const record = rateLimitStore.get(ip);
+
+  if (!record || now > record.resetTime) {
+    rateLimitStore.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+    return { allowed: true };
+  }
+
+  if (record.count >= RATE_LIMIT_MAX_ATTEMPTS) {
+    const retryAfterSeconds = Math.ceil((record.resetTime - now) / 1000);
+    return { allowed: false, retryAfterSeconds };
+  }
+
+  record.count++;
+  return { allowed: true };
+}
+
+// Cleanup old entries periodically
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, record] of rateLimitStore) {
+    if (now > record.resetTime) {
+      rateLimitStore.delete(ip);
+    }
+  }
+}, 60 * 1000); // Clean up every minute
 
 // Password hashing using Bun's native crypto
 async function hashPassword(password: string): Promise<string> {
@@ -23,6 +59,13 @@ async function verifyPassword(password: string, hash: string): Promise<boolean> 
 }
 
 const app = new Elysia()
+  .use(openapi({
+    path: '/api/openapi',
+    references: fromTypes(),
+    scalar: {
+      url: '/api/openapi/json'
+    }
+  }))
   .use(
     jwt({
       name: 'jwt',
@@ -55,8 +98,19 @@ const app = new Elysia()
   })
   // Auth routes
   .post(
-    '/api/auth/register',
-    async ({ body, jwt, cookie: { auth }, set }) => {
+    '/api/auth/register/initiate',
+    async ({ body, set, request }) => {
+      // Rate limiting
+      const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+        || request.headers.get('x-real-ip')
+        || 'unknown';
+      const rateLimit = checkRateLimit(`register:${ip}`);
+      if (!rateLimit.allowed) {
+        set.status = 429;
+        set.headers['Retry-After'] = String(rateLimit.retryAfterSeconds);
+        return { error: 'Too many attempts. Please try again later.' };
+      }
+
       const { email, password } = body;
 
       // Check if user already exists
@@ -66,9 +120,71 @@ const app = new Elysia()
         return { error: 'Email already registered' };
       }
 
-      // Hash password and create user
+      // Hash password and generate OTC
       const passwordHash = await hashPassword(password);
-      const result = userQueries.create.get(email, passwordHash);
+      const code = generateOTC();
+
+      // Store OTC in database
+      storeOTC(email, code, passwordHash);
+
+      // Log OTC with masked email (for development - in production this would send an email)
+      console.log(`[OTC] Registration code for ${maskEmail(email)}: ${code}`);
+
+      return { success: true, message: 'Verification code sent' };
+    },
+    {
+      body: t.Object({
+        email: t.String({ format: 'email' }),
+        password: t.String({ minLength: 8 }),
+      }),
+    }
+  )
+  .post(
+    '/api/auth/register/verify',
+    async ({ body, jwt, cookie: { auth }, set, request }) => {
+      // Rate limiting
+      const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+        || request.headers.get('x-real-ip')
+        || 'unknown';
+      const rateLimit = checkRateLimit(`register-verify:${ip}`);
+      if (!rateLimit.allowed) {
+        set.status = 429;
+        set.headers['Retry-After'] = String(rateLimit.retryAfterSeconds);
+        return { error: 'Too many attempts. Please try again later.' };
+      }
+
+      const { email, code } = body;
+
+      // Get OTC record from database
+      const otcRecord = getOTC(email);
+      if (!otcRecord) {
+        set.status = 400;
+        return { error: 'No pending registration found. Please start over.' };
+      }
+
+      // Check expiry
+      if (Date.now() > otcRecord.expiresAt) {
+        deleteOTC(email);
+        set.status = 400;
+        return { error: 'Verification code expired. Please start over.' };
+      }
+
+      // Verify code
+      if (otcRecord.code !== code) {
+        set.status = 400;
+        return { error: 'Invalid verification code' };
+      }
+
+      // Check again if user exists (race condition protection)
+      const existing = userQueries.findByEmail.get(email);
+      if (existing) {
+        deleteOTC(email);
+        set.status = 400;
+        return { error: 'Email already registered' };
+      }
+
+      // Create user with pre-hashed password
+      const result = userQueries.create.get(email, otcRecord.passwordHash);
 
       if (!result) {
         set.status = 500;
@@ -76,6 +192,9 @@ const app = new Elysia()
       }
 
       const userId = result.id;
+
+      // Clean up OTC
+      deleteOTC(email);
 
       // Seed default labels for the new user
       for (const label of DEFAULT_LABELS) {
@@ -112,13 +231,24 @@ const app = new Elysia()
     {
       body: t.Object({
         email: t.String({ format: 'email' }),
-        password: t.String({ minLength: 6 }),
+        code: t.String({ minLength: 6, maxLength: 6 }),
       }),
     }
   )
   .post(
     '/api/auth/login',
-    async ({ body, jwt, cookie: { auth }, set }) => {
+    async ({ body, jwt, cookie: { auth }, set, request }) => {
+      // Rate limiting
+      const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+        || request.headers.get('x-real-ip')
+        || 'unknown';
+      const rateLimit = checkRateLimit(`login:${ip}`);
+      if (!rateLimit.allowed) {
+        set.status = 429;
+        set.headers['Retry-After'] = String(rateLimit.retryAfterSeconds);
+        return { error: 'Too many attempts. Please try again later.' };
+      }
+
       const { email, password } = body;
 
       // Find user
@@ -331,14 +461,18 @@ const app = new Elysia()
     }
   )
   // Serve static files from dist/ (built frontend)
-  .use(
-    staticPlugin({
-      assets: 'dist',
-      prefix: '/',
-    })
-  )
-  // Fallback to index.html for SPA routing
-  .get('*', () => Bun.file('dist/index.html'))
+  .get('/', () => Bun.file('dist/index.html'))
+  .get('/assets/*', ({ params }) => {
+    const filePath = `dist/assets/${params['*']}`;
+    return Bun.file(filePath);
+  })
+  // Catch-all for SPA routing - serve index.html for any unmatched routes
+  .get('/*', ({ params }) => {
+    const filePath = `dist/${params['*']}`;
+    const file = Bun.file(filePath);
+    // If file exists, serve it; otherwise serve index.html for SPA routing
+    return file.exists().then(exists => exists ? file : Bun.file('dist/index.html'));
+  })
   .listen(PORT);
 
 console.log(`Server running at http://localhost:${PORT}`);

@@ -15,7 +15,7 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
 
-  const { authenticated, loading: authLoading, login, register, logout, email } = useAuth();
+  const { authenticated, loading: authLoading, login, registerInitiate, registerVerify, logout, email } = useAuth();
   const { labels, addLabel, updateLabel, deleteLabel, loading: labelsLoading } = useLabels(authenticated);
   const { shifts, setShift, clearShift, getShift, loading: shiftsLoading } = useShifts(authenticated);
 
@@ -66,7 +66,7 @@ export default function App() {
 
   // Show auth form if not authenticated
   if (!authenticated) {
-    return <AuthForm onLogin={login} onRegister={register} />;
+    return <AuthForm onLogin={login} onRegisterInitiate={registerInitiate} onRegisterVerify={registerVerify} />;
   }
 
   // Show loading state while fetching data
