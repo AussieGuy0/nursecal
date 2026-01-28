@@ -1,6 +1,13 @@
 import { Database } from 'bun:sqlite';
+import { existsSync } from 'fs';
 
 const DB_PATH = process.env.NODE_ENV === 'production' ? '/app/data/nursecal.db' : './nursecal.db';
+const isNewDb = !existsSync(DB_PATH);
+
+console.log(`Database path: ${DB_PATH}`);
+if (isNewDb) {
+  console.log('Creating new database');
+}
 
 export const db = new Database(DB_PATH);
 
@@ -54,9 +61,9 @@ function initSchema() {
 // Initialize schema at module load
 initSchema();
 
-// Initialize DB (called from index.ts for logging)
+// Initialize DB (called from index.ts to ensure module is loaded)
 export function initDB() {
-  console.log('Database initialized');
+  // Schema initialized at module load
 }
 
 // User queries
