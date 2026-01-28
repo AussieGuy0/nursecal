@@ -25,7 +25,11 @@ const otcQueries = {
 };
 
 export function generateOTC(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  const buffer = new Uint32Array(1);
+  crypto.getRandomValues(buffer);
+  // Generate a 6-digit code (100000-999999)
+  const code = 100000 + (buffer[0] % 900000);
+  return code.toString();
 }
 
 export function maskEmail(email: string): string {

@@ -9,12 +9,11 @@ import { generateOTC, maskEmail, storeOTC, getOTC, deleteOTC } from './otc';
 initDB();
 
 const PORT = process.env.PORT || 3123;
-const DEFAULT_JWT_SECRET = 'nursecal-dev-secret-change-in-production';
-const JWT_SECRET = process.env.JWT_SECRET || DEFAULT_JWT_SECRET;
 
-if (process.env.NODE_ENV === 'production' && JWT_SECRET === DEFAULT_JWT_SECRET) {
-  throw new Error('JWT_SECRET must be set in production');
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required');
 }
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Rate limiting configuration
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
