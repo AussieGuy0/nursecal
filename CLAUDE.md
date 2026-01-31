@@ -22,6 +22,9 @@ bun run start            # Run production server on :3123
 
 # Type checking
 bun run tsc              # Frontend type check only
+
+# Tests
+bun test                 # Backend tests (uses temp SQLite DB)
 ```
 
 ## Architecture
@@ -37,10 +40,13 @@ bun run tsc              # Frontend type check only
   - `utils/calendar.ts` - Date calculations
   - `types.ts` - Frontend TypeScript interfaces
 - `server/` - Elysia backend
-  - `index.ts` - API routes and server setup
-  - `db.ts` - SQLite schema and queries
-  - `otc.ts` - One-time code generation for registration
+  - `app.ts` - `createApp()` factory: builds the Elysia app with all routes
+  - `index.ts` - Entrypoint: reads env vars, calls `createApp()`, starts server
+  - `db.ts` - `createDB(dbPath)` factory: SQLite schema and prepared queries
+  - `otc.ts` - `createOTCService(db)` factory: one-time code operations
   - `types.ts` - Backend TypeScript interfaces
+- `test/` - Backend tests
+  - `index.test.ts` - API tests using Elysia `.handle()`
 
 ### Key Patterns
 
