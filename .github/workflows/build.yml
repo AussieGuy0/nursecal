@@ -27,5 +27,8 @@ jobs:
       - name: Type check server
         run: bun run tsc --project server/tsconfig.json --noEmit
 
+      - name: Test
+        run: bun test
+
       - name: Build frontend
         run: bun run build
