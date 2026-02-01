@@ -4,6 +4,8 @@ import { Calendar } from './components/Calendar';
 import { LabelPicker } from './components/LabelPicker';
 import { SettingsManager } from './components/SettingsManager';
 import { AuthForm } from './components/AuthForm';
+import { GoogleEventDetails } from './components/GoogleEventDetails';
+import { GoogleCalendarEvent } from './types';
 import { useAuth } from './hooks/useAuth';
 import { useLabels } from './hooks/useLabels';
 import { useShifts } from './hooks/useShifts';
@@ -16,6 +18,7 @@ export default function App() {
   const [month, setMonth] = useState(today.getMonth());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [selectedGoogleEvent, setSelectedGoogleEvent] = useState<GoogleCalendarEvent | null>(null);
 
   const { addToast } = useToast();
 
@@ -30,10 +33,7 @@ export default function App() {
 
   // Handle OAuth redirect - refetch status when returning from Google
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.has('code') || window.location.pathname === '/') {
-      google.refetchStatus();
-    }
+    google.refetchStatus();
   }, []);
 
   const handlePrevMonth = () => {
@@ -122,6 +122,7 @@ export default function App() {
           onSwipeLeft={handleNextMonth}
           onSwipeRight={handlePrevMonth}
           googleEventsByDate={google.eventsByDate}
+          onGoogleEventTap={setSelectedGoogleEvent}
         />
       )}
 
@@ -147,6 +148,13 @@ export default function App() {
           onGoogleConnect={google.connect}
           onGoogleDisconnect={google.disconnect}
           onToggleGoogleVisibility={google.toggleVisibility}
+        />
+      )}
+
+      {selectedGoogleEvent && (
+        <GoogleEventDetails
+          event={selectedGoogleEvent}
+          onClose={() => setSelectedGoogleEvent(null)}
         />
       )}
     </div>

@@ -54,6 +54,7 @@ bun test                 # Backend tests (uses temp SQLite DB)
 - **Sync Strategy:** `useShifts` uses 500ms debounced sync with optimistic UI updates.
 - **Auth:** JWT stored in HTTP-only cookies, 7-day expiration. Rate limiting on auth endpoints.
 - **Database:** SQLite with prepared statements. Shifts stored as JSON.
+- **PWA:** Service worker (workbox via vite-plugin-pwa) caches static assets and uses a navigation fallback to `index.html` for offline SPA support. `/api/*` routes are excluded from the navigation fallback (`navigateFallbackDenylist` in `vite.config.ts`) so that server-initiated redirects (e.g., OAuth callbacks) reach the backend instead of being intercepted by the service worker. When debugging issues with routes returning unexpected HTML, check whether the service worker is interfering.
 
 ### API Endpoints
 

@@ -12,13 +12,14 @@ interface CalendarProps {
   onSwipeLeft?: () => void;
   onSwipeRight?: () => void;
   googleEventsByDate?: Record<string, GoogleCalendarEvent[]>;
+  onGoogleEventTap?: (event: GoogleCalendarEvent) => void;
 }
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const SWIPE_THRESHOLD = 50;
 
-export function Calendar({ year, month, shifts, labels, onDayTap, onSwipeLeft, onSwipeRight, googleEventsByDate }: CalendarProps) {
+export function Calendar({ year, month, shifts, labels, onDayTap, onSwipeLeft, onSwipeRight, googleEventsByDate, onGoogleEventTap }: CalendarProps) {
   const days = getCalendarDays(year, month);
   const today = new Date();
   const todayKey = formatDateKey(today.getFullYear(), today.getMonth(), today.getDate());
@@ -84,6 +85,7 @@ export function Calendar({ year, month, shifts, labels, onDayTap, onSwipeLeft, o
             label={shifts[dateKey] ? getLabelById(shifts[dateKey]) : undefined}
             onTap={onDayTap}
             googleEvents={googleEventsByDate?.[dateKey]}
+            onGoogleEventTap={onGoogleEventTap}
           />
         ))}
       </div>

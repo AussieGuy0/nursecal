@@ -8,9 +8,10 @@ interface DayCellProps {
   isToday: boolean;
   onTap: (dateKey: string) => void;
   googleEvents?: GoogleCalendarEvent[];
+  onGoogleEventTap?: (event: GoogleCalendarEvent) => void;
 }
 
-export function DayCell({ day, dateKey, isCurrentMonth, label, isToday, onTap, googleEvents }: DayCellProps) {
+export function DayCell({ day, dateKey, isCurrentMonth, label, isToday, onTap, googleEvents, onGoogleEventTap }: DayCellProps) {
   const visibleEvents = googleEvents?.slice(0, 2) || [];
   const extraCount = (googleEvents?.length || 0) - 2;
 
@@ -46,7 +47,11 @@ export function DayCell({ day, dateKey, isCurrentMonth, label, isToday, onTap, g
       {visibleEvents.map((event) => (
         <span
           key={event.id}
-          className="mt-0.5 px-1.5 py-0.5 text-[10px] leading-tight font-medium rounded-full truncate max-w-full bg-amber-100 text-amber-800"
+          onClick={(e) => {
+            e.stopPropagation();
+            onGoogleEventTap?.(event);
+          }}
+          className="mt-0.5 px-1.5 py-0.5 text-[10px] leading-tight font-medium rounded-full truncate max-w-full bg-amber-100 text-amber-800 hover:bg-amber-200 cursor-pointer"
         >
           {event.summary}
         </span>
