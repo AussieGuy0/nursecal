@@ -345,8 +345,8 @@ describe('Google Calendar', () => {
           headers: { Cookie: cookie },
         })
       );
-      // Elysia set.redirect produces a redirect response
-      expect([200, 302]).toContain(res.status);
+      expect(res.status).toBe(302);
+      expect(res.headers.get('location')).toBe('/');
       expect(mockExchangeCodeForTokens).toHaveBeenCalled();
 
       // Verify tokens were stored by checking status

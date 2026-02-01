@@ -488,7 +488,7 @@ export function createApp({ dbPath, jwtSecret }: { dbPath: string; jwtSecret: st
       if (!tokens.refresh_token) { set.status = 400; return { error: 'No refresh token received. Please try disconnecting and reconnecting.' }; }
 
       googleTokenQueries.upsert.run(user.id, tokens.access_token, tokens.refresh_token, Date.now() + tokens.expires_in * 1000, tokens.scope);
-      set.redirect = '/';
+      return new Response(null, { status: 302, headers: { Location: '/' } });
     })
     .get('/api/google/status', ({ user, set }) => {
       if (!user) { set.status = 401; return { error: 'Unauthorized' }; }
