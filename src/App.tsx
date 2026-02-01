@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { Calendar } from './components/Calendar';
 import { LabelPicker } from './components/LabelPicker';
@@ -7,6 +7,7 @@ import { AuthForm } from './components/AuthForm';
 import { useAuth } from './hooks/useAuth';
 import { useLabels } from './hooks/useLabels';
 import { useShifts } from './hooks/useShifts';
+import { useGoogleCalendar } from './hooks/useGoogleCalendar';
 
 export default function App() {
   const today = new Date();
@@ -18,6 +19,15 @@ export default function App() {
   const { authenticated, loading: authLoading, login, registerInitiate, registerVerify, logout, email } = useAuth();
   const { labels, addLabel, updateLabel, deleteLabel, loading: labelsLoading } = useLabels(authenticated);
   const { shifts, setShift, clearShift, getShift, loading: shiftsLoading } = useShifts(authenticated);
+  const google = useGoogleCalendar(authenticated, year, month);
+
+  // Handle OAuth redirect - refetch status when returning from Google
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('code') || window.location.pathname === '/') {
+      google.refetchStatus();
+    }
+  }, []);
 
   const handlePrevMonth = () => {
     if (month === 0) {
@@ -104,6 +114,7 @@ export default function App() {
           onDayTap={handleDayTap}
           onSwipeLeft={handleNextMonth}
           onSwipeRight={handlePrevMonth}
+          googleEventsByDate={google.eventsByDate}
         />
       )}
 
@@ -124,6 +135,11 @@ export default function App() {
           onUpdate={updateLabel}
           onDelete={deleteLabel}
           onClose={() => setShowSettings(false)}
+          googleConnected={google.connected}
+          googleVisible={google.visible}
+          onGoogleConnect={google.connect}
+          onGoogleDisconnect={google.disconnect}
+          onToggleGoogleVisibility={google.toggleVisibility}
         />
       )}
     </div>

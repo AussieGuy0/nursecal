@@ -13,3 +13,13 @@ export interface Shift {
 export interface ShiftMap {
   [date: string]: string; // date -> labelId
 }
+
+export interface GoogleCalendarEvent {
+  id: string;
+  summary: string;
+  start: string;
+  end: string;
+  isAllDay: boolean;
+  calendarName?: string;
+  color?: string;
+}
