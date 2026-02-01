@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { GoogleCalendarEvent } from '../types';
+import { GoogleCalendarEvent, ActionResult } from '../types';
 
 interface GoogleCalendarState {
   connected: boolean;
@@ -74,38 +74,44 @@ export function useGoogleCalendar(authenticated: boolean, year: number, month: n
     fetchEvents();
   }, [fetchEvents]);
 
-  const connect = useCallback(async () => {
+  const connect = useCallback(async (): Promise<ActionResult> => {
     try {
       const res = await fetch('/api/google/auth');
       if (res.ok) {
         const data = await res.json();
         window.location.href = data.url;
+        return { success: true };
       }
+      return { success: false, error: 'Failed to start Google Calendar connection' };
     } catch {
-      // ignore
+      return { success: false, error: 'Network error — could not connect to Google Calendar' };
     }
   }, []);
 
-  const disconnect = useCallback(async () => {
+  const disconnect = useCallback(async (): Promise<ActionResult> => {
     try {
       const res = await fetch('/api/google/disconnect', { method: 'POST' });
       if (res.ok) {
         setState({ connected: false, visible: false, events: [], loading: false });
+        return { success: true };
       }
+      return { success: false, error: 'Failed to disconnect Google Calendar' };
     } catch {
-      // ignore
+      return { success: false, error: 'Network error — could not disconnect Google Calendar' };
     }
   }, []);
 
-  const toggleVisibility = useCallback(async () => {
+  const toggleVisibility = useCallback(async (): Promise<ActionResult> => {
     try {
       const res = await fetch('/api/google/toggle', { method: 'POST' });
       if (res.ok) {
         const data = await res.json();
         setState((prev) => ({ ...prev, visible: data.visible }));
+        return { success: true };
       }
+      return { success: false, error: 'Failed to toggle calendar visibility' };
     } catch {
-      // ignore
+      return { success: false, error: 'Network error — could not toggle calendar visibility' };
     }
   }, []);
 

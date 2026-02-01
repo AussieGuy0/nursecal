@@ -1,16 +1,18 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ShiftMap } from '../types';
 
-export function useShifts(authenticated: boolean) {
+export function useShifts(authenticated: boolean, onSyncError?: (error: string) => void) {
   const [shifts, setShifts] = useState<ShiftMap>({});
   const [loading, setLoading] = useState(true);
   const pendingSync = useRef<ShiftMap | null>(null);
   const syncTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSyncedShifts = useRef<ShiftMap>({});
 
   // Fetch shifts from API
   const fetchShifts = useCallback(async () => {
     if (!authenticated) {
       setShifts({});
+      lastSyncedShifts.current = {};
       setLoading(false);
       return;
     }
@@ -20,6 +22,7 @@ export function useShifts(authenticated: boolean) {
       if (res.ok) {
         const data = await res.json();
         setShifts(data);
+        lastSyncedShifts.current = data;
       }
     } catch {
       console.error('Failed to fetch shifts');
@@ -35,15 +38,22 @@ export function useShifts(authenticated: boolean) {
   // Debounced sync to backend
   const syncToBackend = useCallback(async (newShifts: ShiftMap) => {
     try {
-      await fetch('/api/calendar', {
+      const res = await fetch('/api/calendar', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newShifts),
       });
+      if (res.ok) {
+        lastSyncedShifts.current = newShifts;
+      } else {
+        setShifts(lastSyncedShifts.current);
+        onSyncError?.('Failed to save shifts');
+      }
     } catch {
-      console.error('Failed to sync shifts');
+      setShifts(lastSyncedShifts.current);
+      onSyncError?.('Network error — shifts could not be saved');
     }
-  }, []);
+  }, [onSyncError]);
 
   // Queue sync with debouncing
   const queueSync = useCallback((newShifts: ShiftMap) => {

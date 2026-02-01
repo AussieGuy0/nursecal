@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Header } from './components/Header';
 import { Calendar } from './components/Calendar';
 import { LabelPicker } from './components/LabelPicker';
-import { LabelManager } from './components/LabelManager';
+import { SettingsManager } from './components/SettingsManager';
 import { AuthForm } from './components/AuthForm';
 import { useAuth } from './hooks/useAuth';
 import { useLabels } from './hooks/useLabels';
 import { useShifts } from './hooks/useShifts';
 import { useGoogleCalendar } from './hooks/useGoogleCalendar';
+import { useToast } from './context/ToastContext';
 
 export default function App() {
   const today = new Date();
@@ -16,9 +17,15 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
 
+  const { addToast } = useToast();
+
+  const handleSyncError = useCallback((error: string) => {
+    addToast(error, 'error');
+  }, [addToast]);
+
   const { authenticated, loading: authLoading, login, registerInitiate, registerVerify, logout, email } = useAuth();
   const { labels, addLabel, updateLabel, deleteLabel, loading: labelsLoading } = useLabels(authenticated);
-  const { shifts, setShift, clearShift, getShift, loading: shiftsLoading } = useShifts(authenticated);
+  const { shifts, setShift, clearShift, getShift, loading: shiftsLoading } = useShifts(authenticated, handleSyncError);
   const google = useGoogleCalendar(authenticated, year, month);
 
   // Handle OAuth redirect - refetch status when returning from Google
@@ -129,7 +136,7 @@ export default function App() {
       )}
 
       {showSettings && (
-        <LabelManager
+        <SettingsManager
           labels={labels}
           onAdd={addLabel}
           onUpdate={updateLabel}

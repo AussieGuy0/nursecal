@@ -1,17 +1,18 @@
 import { useState } from 'react';
-import { Label } from '../types';
+import { Label, ActionResult } from '../types';
+import { useToast } from '../context/ToastContext';
 
-interface LabelManagerProps {
+interface SettingsManagerProps {
   labels: Label[];
-  onAdd: (shortCode: string, name: string, color: string) => void;
-  onUpdate: (id: string, updates: Partial<Omit<Label, 'id'>>) => void;
-  onDelete: (id: string) => void;
+  onAdd: (shortCode: string, name: string, color: string) => Promise<ActionResult>;
+  onUpdate: (id: string, updates: Partial<Omit<Label, 'id'>>) => Promise<ActionResult>;
+  onDelete: (id: string) => Promise<ActionResult>;
   onClose: () => void;
   googleConnected?: boolean;
   googleVisible?: boolean;
-  onGoogleConnect?: () => void;
-  onGoogleDisconnect?: () => void;
-  onToggleGoogleVisibility?: () => void;
+  onGoogleConnect?: () => Promise<ActionResult>;
+  onGoogleDisconnect?: () => Promise<ActionResult>;
+  onToggleGoogleVisibility?: () => Promise<ActionResult>;
 }
 
 const PRESET_COLORS = [
@@ -25,13 +26,14 @@ const PRESET_COLORS = [
   '#ec4899', '#db2777', '#f43f5e', '#e11d48', '#6b7280', '#374151'
 ];
 
-export function LabelManager({
+export function SettingsManager({
   labels, onAdd, onUpdate, onDelete, onClose,
   googleConnected, googleVisible, onGoogleConnect, onGoogleDisconnect, onToggleGoogleVisibility,
-}: LabelManagerProps) {
+}: SettingsManagerProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [formData, setFormData] = useState({ shortCode: '', name: '', color: '#3b82f6' });
+  const { addToast } = useToast();
 
   const resetForm = () => {
     setFormData({ shortCode: '', name: '', color: '#3b82f6' });
@@ -39,15 +41,46 @@ export function LabelManager({
     setIsAdding(false);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.shortCode || !formData.name) return;
 
-    if (editingId) {
-      onUpdate(editingId, formData);
+    const result = editingId
+      ? await onUpdate(editingId, formData)
+      : await onAdd(formData.shortCode, formData.name, formData.color);
+
+    if (result.success) {
+      resetForm();
     } else {
-      onAdd(formData.shortCode, formData.name, formData.color);
+      addToast(result.error!, 'error');
     }
-    resetForm();
+  };
+
+  const handleDelete = async (id: string) => {
+    const result = await onDelete(id);
+    if (!result.success) {
+      addToast(result.error!, 'error');
+    }
+  };
+
+  const handleGoogleConnect = async () => {
+    const result = await onGoogleConnect!();
+    if (!result.success) {
+      addToast(result.error!, 'error');
+    }
+  };
+
+  const handleGoogleDisconnect = async () => {
+    const result = await onGoogleDisconnect!();
+    if (!result.success) {
+      addToast(result.error!, 'error');
+    }
+  };
+
+  const handleToggleVisibility = async () => {
+    const result = await onToggleGoogleVisibility!();
+    if (!result.success) {
+      addToast(result.error!, 'error');
+    }
   };
 
   const startEdit = (label: Label) => {
@@ -105,7 +138,7 @@ export function LabelManager({
                     </svg>
                   </button>
                   <button
-                    onClick={() => onDelete(label.id)}
+                    onClick={() => handleDelete(label.id)}
                     className="p-2 rounded-full hover:bg-red-100 text-red-600"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -210,7 +243,7 @@ export function LabelManager({
                     <span className="text-sm font-medium text-green-800">Connected</span>
                   </div>
                   <button
-                    onClick={onToggleGoogleVisibility}
+                    onClick={handleToggleVisibility}
                     className="w-full flex items-center justify-between p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
                   >
                     <span className="text-sm font-medium text-gray-700">Show events on calendar</span>
@@ -219,7 +252,7 @@ export function LabelManager({
                     </div>
                   </button>
                   <button
-                    onClick={onGoogleDisconnect}
+                    onClick={handleGoogleDisconnect}
                     className="w-full px-4 py-2 text-sm font-medium text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors"
                   >
                     Disconnect
@@ -227,7 +260,7 @@ export function LabelManager({
                 </div>
               ) : (
                 <button
-                  onClick={onGoogleConnect}
+                  onClick={handleGoogleConnect}
                   className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors"
                 >
                   Connect Google Calendar

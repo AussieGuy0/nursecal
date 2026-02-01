@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Label } from '../types';
+import { Label, ActionResult } from '../types';
 
 export function useLabels(authenticated: boolean) {
   const [labels, setLabels] = useState<Label[]>([]);
@@ -30,7 +30,7 @@ export function useLabels(authenticated: boolean) {
     fetchLabels();
   }, [fetchLabels]);
 
-  const addLabel = async (shortCode: string, name: string, color: string) => {
+  const addLabel = async (shortCode: string, name: string, color: string): Promise<ActionResult> => {
     try {
       const res = await fetch('/api/labels', {
         method: 'POST',
@@ -40,13 +40,16 @@ export function useLabels(authenticated: boolean) {
       if (res.ok) {
         const newLabel = await res.json();
         setLabels(prev => [...prev, newLabel]);
+        return { success: true };
       }
+      const body = await res.json().catch(() => null);
+      return { success: false, error: body?.error || 'Failed to add label' };
     } catch {
-      console.error('Failed to add label');
+      return { success: false, error: 'Network error — could not add label' };
     }
   };
 
-  const updateLabel = async (id: string, updates: Partial<Omit<Label, 'id'>>) => {
+  const updateLabel = async (id: string, updates: Partial<Omit<Label, 'id'>>): Promise<ActionResult> => {
     try {
       const res = await fetch(`/api/labels/${id}`, {
         method: 'PUT',
@@ -58,22 +61,28 @@ export function useLabels(authenticated: boolean) {
         setLabels(prev => prev.map(label =>
           label.id === id ? updatedLabel : label
         ));
+        return { success: true };
       }
+      const body = await res.json().catch(() => null);
+      return { success: false, error: body?.error || 'Failed to update label' };
     } catch {
-      console.error('Failed to update label');
+      return { success: false, error: 'Network error — could not update label' };
     }
   };
 
-  const deleteLabel = async (id: string) => {
+  const deleteLabel = async (id: string): Promise<ActionResult> => {
     try {
       const res = await fetch(`/api/labels/${id}`, {
         method: 'DELETE',
       });
       if (res.ok) {
         setLabels(prev => prev.filter(label => label.id !== id));
+        return { success: true };
       }
+      const body = await res.json().catch(() => null);
+      return { success: false, error: body?.error || 'Failed to delete label' };
     } catch {
-      console.error('Failed to delete label');
+      return { success: false, error: 'Network error — could not delete label' };
     }
   };
 

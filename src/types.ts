@@ -14,6 +14,11 @@ export interface ShiftMap {
   [date: string]: string; // date -> labelId
 }
 
+export interface ActionResult {
+  success: boolean;
+  error?: string;
+}
+
 export interface GoogleCalendarEvent {
   id: string;
   summary: string;

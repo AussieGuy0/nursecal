@@ -35,7 +35,7 @@ bun test                 # Backend tests (uses temp SQLite DB)
 ### Directory Structure
 
 - `src/` - React frontend
-  - `components/` - UI components (Calendar, DayCell, LabelManager, LabelPicker, AuthForm, Header)
+  - `components/` - UI components (Calendar, DayCell, SettingsManager, LabelPicker, AuthForm, Header)
   - `hooks/` - State management hooks (useAuth, useLabels, useShifts)
   - `utils/calendar.ts` - Date calculations
   - `types.ts` - Frontend TypeScript interfaces
