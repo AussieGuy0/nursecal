@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/bun';
 import { Elysia, t } from 'elysia';
 import { jwt } from '@elysiajs/jwt';
 import { openapi, fromTypes } from '@elysiajs/openapi';
@@ -59,6 +60,9 @@ export function createApp({ dbPath, jwtSecret }: { dbPath: string; jwtSecret: st
   }, 60 * 1000);
 
   const app = new Elysia()
+    .onError(({ error }) => {
+      Sentry.captureException(error);
+    })
     .derive(({ request }) => {
       return { requestStart: performance.now(), requestPath: new URL(request.url).pathname };
     })
