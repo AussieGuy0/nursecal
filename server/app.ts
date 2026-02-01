@@ -59,6 +59,13 @@ export function createApp({ dbPath, jwtSecret }: { dbPath: string; jwtSecret: st
   }, 60 * 1000);
 
   const app = new Elysia()
+    .derive(({ request }) => {
+      return { requestStart: performance.now(), requestPath: new URL(request.url).pathname };
+    })
+    .onAfterResponse(({ request, set, requestStart, requestPath }) => {
+      const duration = (performance.now() - requestStart).toFixed(1);
+      console.log(`${request.method} ${requestPath} ${set.status ?? 200} ${duration}ms`);
+    })
     .use(openapi({
       path: '/api/openapi',
       references: fromTypes(),
