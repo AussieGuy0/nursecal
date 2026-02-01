@@ -1,4 +1,4 @@
-import { Label } from '../types';
+import { Label, GoogleCalendarEvent } from '../types';
 
 interface DayCellProps {
   day: number;
@@ -7,9 +7,13 @@ interface DayCellProps {
   label?: Label;
   isToday: boolean;
   onTap: (dateKey: string) => void;
+  googleEvents?: GoogleCalendarEvent[];
 }
 
-export function DayCell({ day, dateKey, isCurrentMonth, label, isToday, onTap }: DayCellProps) {
+export function DayCell({ day, dateKey, isCurrentMonth, label, isToday, onTap, googleEvents }: DayCellProps) {
+  const visibleEvents = googleEvents?.slice(0, 2) || [];
+  const extraCount = (googleEvents?.length || 0) - 2;
+
   return (
     <button
       onClick={() => onTap(dateKey)}
@@ -36,6 +40,21 @@ export function DayCell({ day, dateKey, isCurrentMonth, label, isToday, onTap }:
           style={{ backgroundColor: label.color }}
         >
           {label.shortCode}
+        </span>
+      )}
+
+      {visibleEvents.map((event) => (
+        <span
+          key={event.id}
+          className="mt-0.5 px-1.5 py-0.5 text-[10px] leading-tight font-medium rounded-full truncate max-w-full bg-amber-100 text-amber-800"
+        >
+          {event.summary}
+        </span>
+      ))}
+
+      {extraCount > 0 && (
+        <span className="text-[10px] text-amber-600 font-medium">
+          +{extraCount} more
         </span>
       )}
     </button>

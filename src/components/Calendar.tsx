@@ -1,7 +1,7 @@
 import { useRef, useCallback } from 'react';
 import { DayCell } from './DayCell';
 import { getCalendarDays, formatDateKey } from '../utils/calendar';
-import { Label } from '../types';
+import { Label, GoogleCalendarEvent } from '../types';
 
 interface CalendarProps {
   year: number;
@@ -11,13 +11,14 @@ interface CalendarProps {
   onDayTap: (dateKey: string) => void;
   onSwipeLeft?: () => void;
   onSwipeRight?: () => void;
+  googleEventsByDate?: Record<string, GoogleCalendarEvent[]>;
 }
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const SWIPE_THRESHOLD = 50;
 
-export function Calendar({ year, month, shifts, labels, onDayTap, onSwipeLeft, onSwipeRight }: CalendarProps) {
+export function Calendar({ year, month, shifts, labels, onDayTap, onSwipeLeft, onSwipeRight, googleEventsByDate }: CalendarProps) {
   const days = getCalendarDays(year, month);
   const today = new Date();
   const todayKey = formatDateKey(today.getFullYear(), today.getMonth(), today.getDate());
@@ -82,6 +83,7 @@ export function Calendar({ year, month, shifts, labels, onDayTap, onSwipeLeft, o
             isToday={dateKey === todayKey}
             label={shifts[dateKey] ? getLabelById(shifts[dateKey]) : undefined}
             onTap={onDayTap}
+            googleEvents={googleEventsByDate?.[dateKey]}
           />
         ))}
       </div>

@@ -7,6 +7,11 @@ interface LabelManagerProps {
   onUpdate: (id: string, updates: Partial<Omit<Label, 'id'>>) => void;
   onDelete: (id: string) => void;
   onClose: () => void;
+  googleConnected?: boolean;
+  googleVisible?: boolean;
+  onGoogleConnect?: () => void;
+  onGoogleDisconnect?: () => void;
+  onToggleGoogleVisibility?: () => void;
 }
 
 const PRESET_COLORS = [
@@ -20,7 +25,10 @@ const PRESET_COLORS = [
   '#ec4899', '#db2777', '#f43f5e', '#e11d48', '#6b7280', '#374151'
 ];
 
-export function LabelManager({ labels, onAdd, onUpdate, onDelete, onClose }: LabelManagerProps) {
+export function LabelManager({
+  labels, onAdd, onUpdate, onDelete, onClose,
+  googleConnected, googleVisible, onGoogleConnect, onGoogleDisconnect, onToggleGoogleVisibility,
+}: LabelManagerProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [formData, setFormData] = useState({ shortCode: '', name: '', color: '#3b82f6' });
@@ -63,7 +71,7 @@ export function LabelManager({ labels, onAdd, onUpdate, onDelete, onClose }: Lab
       {/* Modal */}
       <div className="relative w-full max-w-md bg-white rounded-2xl max-h-[80vh] overflow-hidden flex flex-col">
         <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Manage Labels</h2>
+          <h2 className="text-lg font-semibold">Settings</h2>
           <button onClick={onClose} className="p-2 -mr-2 rounded-full hover:bg-gray-100">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -73,6 +81,7 @@ export function LabelManager({ labels, onAdd, onUpdate, onDelete, onClose }: Lab
 
         <div className="flex-1 overflow-y-auto p-4">
           {/* Label list */}
+          {!showForm && <h3 className="text-sm font-semibold text-gray-700 mb-3">Labels</h3>}
           {!showForm && (
             <div className="space-y-2 mb-4">
               {labels.map(label => (
@@ -183,6 +192,48 @@ export function LabelManager({ labels, onAdd, onUpdate, onDelete, onClose }: Lab
               </svg>
               Add Label
             </button>
+          )}
+
+          {/* Google Calendar section */}
+          {!showForm && onGoogleConnect && (
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">Google Calendar</h3>
+              <p className="text-xs text-gray-500 mb-3">
+                View your Google Calendar events alongside your shifts.
+              </p>
+              {googleConnected ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 p-3 bg-green-50 rounded-lg">
+                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span className="text-sm font-medium text-green-800">Connected</span>
+                  </div>
+                  <button
+                    onClick={onToggleGoogleVisibility}
+                    className="w-full flex items-center justify-between p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
+                  >
+                    <span className="text-sm font-medium text-gray-700">Show events on calendar</span>
+                    <div className={`w-10 h-6 rounded-full relative transition-colors ${googleVisible ? 'bg-blue-500' : 'bg-gray-300'}`}>
+                      <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${googleVisible ? 'left-5' : 'left-1'}`} />
+                    </div>
+                  </button>
+                  <button
+                    onClick={onGoogleDisconnect}
+                    className="w-full px-4 py-2 text-sm font-medium text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors"
+                  >
+                    Disconnect
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={onGoogleConnect}
+                  className="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors"
+                >
+                  Connect Google Calendar
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>

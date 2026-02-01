@@ -11,7 +11,10 @@ interface HeaderProps {
   onLogout?: () => void;
 }
 
-export function Header({ year, month, onPrevMonth, onNextMonth, onToday, onOpenSettings, email, onLogout }: HeaderProps) {
+export function Header({
+  year, month, onPrevMonth, onNextMonth, onToday, onOpenSettings,
+  email, onLogout,
+}: HeaderProps) {
   return (
     <header className="bg-white border-b border-gray-200">
       <div className="flex items-center justify-between px-4 py-3">
@@ -38,7 +41,7 @@ export function Header({ year, month, onPrevMonth, onNextMonth, onToday, onOpenS
           </button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <button
             onClick={onNextMonth}
             className="p-2 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors"

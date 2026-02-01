@@ -4,6 +4,7 @@ import { openapi, fromTypes } from '@elysiajs/openapi';
 import { createDB, generateId } from './db';
 import { createOTCService, generateOTC, maskEmail } from './otc';
 import { DEFAULT_LABELS, type JWTPayload, type LabelResponse, type ShiftMap } from './types';
+import { buildAuthUrl, generateOAuthState, exchangeCodeForTokens, refreshAccessToken, revokeToken, fetchAllCalendarEvents } from './google';
 
 // Rate limiting configuration
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
@@ -22,7 +23,7 @@ async function verifyPassword(password: string, hash: string): Promise<boolean> 
 }
 
 export function createApp({ dbPath, jwtSecret }: { dbPath: string; jwtSecret: string }) {
-  const { userQueries, labelQueries, calendarQueries, db } = createDB(dbPath);
+  const { userQueries, labelQueries, calendarQueries, oauthStateQueries, googleTokenQueries, db } = createDB(dbPath);
   const { storeOTC, getOTC, deleteOTC } = createOTCService(db);
 
   // In-memory rate limit store: IP -> { count, resetTime }
@@ -54,6 +55,7 @@ export function createApp({ dbPath, jwtSecret }: { dbPath: string; jwtSecret: st
         rateLimitStore.delete(ip);
       }
     }
+    oauthStateQueries.deleteExpired.run(now);
   }, 60 * 1000);
 
   const app = new Elysia()
@@ -458,6 +460,107 @@ export function createApp({ dbPath, jwtSecret }: { dbPath: string; jwtSecret: st
         body: t.Record(t.String(), t.String()),
       }
     )
+    // Google Calendar routes
+    .get('/api/google/auth', ({ user, set }) => {
+      if (!user) { set.status = 401; return { error: 'Unauthorized' }; }
+
+      const state = generateOAuthState();
+      oauthStateQueries.insert.run(state, user.id, Date.now() + 10 * 60 * 1000);
+
+      const url = buildAuthUrl(state);
+      if (!url) { set.status = 500; return { error: 'Google OAuth not configured' }; }
+      return { url };
+    })
+    .get('/api/google/callback', async ({ query, user, set }) => {
+      if (!user) { set.status = 401; return { error: 'Unauthorized' }; }
+      if (!query.code) { set.status = 400; return { error: 'Missing authorization code' }; }
+      if (!query.state) { set.status = 400; return { error: 'Missing state parameter' }; }
+
+      const storedState = oauthStateQueries.find.get(query.state);
+      if (!storedState || storedState.user_id !== user.id || Date.now() > storedState.expires_at) {
+        set.status = 403;
+        return { error: 'Invalid or expired OAuth state. Please try again.' };
+      }
+      oauthStateQueries.delete.run(query.state);
+
+      const tokens = await exchangeCodeForTokens(query.code);
+      if (!tokens) { set.status = 400; return { error: 'Failed to exchange authorization code' }; }
+      if (!tokens.refresh_token) { set.status = 400; return { error: 'No refresh token received. Please try disconnecting and reconnecting.' }; }
+
+      googleTokenQueries.upsert.run(user.id, tokens.access_token, tokens.refresh_token, Date.now() + tokens.expires_in * 1000, tokens.scope);
+      set.redirect = '/';
+    })
+    .get('/api/google/status', ({ user, set }) => {
+      if (!user) { set.status = 401; return { error: 'Unauthorized' }; }
+
+      const record = googleTokenQueries.findByUserId.get(user.id);
+      if (!record) return { connected: false, visible: false };
+      return { connected: true, visible: record.visible === 1 };
+    })
+    .post('/api/google/disconnect', async ({ user, set }) => {
+      if (!user) { set.status = 401; return { error: 'Unauthorized' }; }
+
+      const record = googleTokenQueries.findByUserId.get(user.id);
+      if (record) {
+        // Revoke refresh token with Google (best-effort; also invalidates its access tokens)
+        await revokeToken(record.refresh_token).catch(() => {});
+      }
+      googleTokenQueries.delete.run(user.id);
+      return { success: true };
+    })
+    .post('/api/google/toggle', ({ user, set }) => {
+      if (!user) { set.status = 401; return { error: 'Unauthorized' }; }
+
+      const record = googleTokenQueries.findByUserId.get(user.id);
+      if (!record) { set.status = 400; return { error: 'Google Calendar not connected' }; }
+
+      googleTokenQueries.toggleVisibility.run(user.id);
+      const updated = googleTokenQueries.findByUserId.get(user.id);
+      return { visible: updated!.visible === 1 };
+    })
+    .get('/api/google/events', async ({ query, user, set }) => {
+      if (!user) { set.status = 401; return { error: 'Unauthorized' }; }
+
+      const record = googleTokenQueries.findByUserId.get(user.id);
+      if (!record) { set.status = 400; return { error: 'Google Calendar not connected' }; }
+      if (record.visible === 0) return [];
+
+      let accessToken = record.access_token;
+      if (Date.now() >= record.expires_at) {
+        const refreshed = await refreshAccessToken(record.refresh_token);
+        if (!refreshed) {
+          googleTokenQueries.delete.run(user.id);
+          set.status = 401;
+          return { error: 'Google token expired. Please reconnect.' };
+        }
+        accessToken = refreshed.access_token;
+        googleTokenQueries.updateAccessToken.run(accessToken, Date.now() + refreshed.expires_in * 1000, user.id);
+      }
+
+      const { timeMin, timeMax } = query;
+      if (!timeMin || !timeMax) { set.status = 400; return { error: 'timeMin and timeMax are required' }; }
+
+      const minDate = new Date(timeMin);
+      const maxDate = new Date(timeMax);
+      if (isNaN(minDate.getTime()) || isNaN(maxDate.getTime())) {
+        set.status = 400;
+        return { error: 'timeMin and timeMax must be valid ISO 8601 dates' };
+      }
+      // Cap range to 90 days to prevent excessive API calls
+      const ninetyDaysMs = 90 * 24 * 60 * 60 * 1000;
+      if (maxDate.getTime() - minDate.getTime() > ninetyDaysMs) {
+        set.status = 400;
+        return { error: 'Date range must not exceed 90 days' };
+      }
+      if (maxDate <= minDate) {
+        set.status = 400;
+        return { error: 'timeMax must be after timeMin' };
+      }
+
+      const events = await fetchAllCalendarEvents(accessToken, minDate.toISOString(), maxDate.toISOString());
+      if (!events) { set.status = 502; return { error: 'Failed to fetch calendar events' }; }
+      return events;
+    })
     // Serve static files from dist/ (built frontend)
     .get('/', () => Bun.file('dist/index.html'))
     .get('/assets/*', ({ params }) => {
