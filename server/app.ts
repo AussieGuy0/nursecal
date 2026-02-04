@@ -13,6 +13,7 @@ import {
   revokeToken,
   fetchAllCalendarEvents,
 } from './google';
+import type { EmailService } from './email';
 
 // Rate limiting configuration
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
@@ -30,7 +31,17 @@ async function verifyPassword(password: string, hash: string): Promise<boolean> 
   return await Bun.password.verify(password, hash);
 }
 
-export function createApp({ dbPath, jwtSecret }: { dbPath: string; jwtSecret: string }) {
+export function createApp({
+  dbPath,
+  jwtSecret,
+  emailService,
+  domain = 'localhost',
+}: {
+  dbPath: string;
+  jwtSecret: string;
+  emailService: EmailService;
+  domain?: string;
+}) {
   const { userQueries, labelQueries, calendarQueries, oauthStateQueries, googleTokenQueries, db } = createDB(dbPath);
   const { storeOTC, getOTC, deleteOTC } = createOTCService(db);
 
@@ -148,8 +159,19 @@ export function createApp({ dbPath, jwtSecret }: { dbPath: string; jwtSecret: st
         // Store OTC in database
         storeOTC(email, code, passwordHash);
 
-        // Log OTC with masked email (for development - in production this would send an email)
-        console.log(`[OTC] Registration code for ${maskEmail(email)}: ${code}`);
+        try {
+          await emailService.sendEmail(
+            `NurseCal <noreply@${domain}>`,
+            email,
+            'Your NurseCal verification code',
+            `<p>Your verification code is: <strong>${code}</strong></p><p>This code expires in 10 minutes.</p>`,
+          );
+        } catch (err) {
+          console.error('[Email] Failed to send verification code:', err);
+          deleteOTC(email);
+          set.status = 500;
+          return { error: 'Failed to send verification code. Please try again.' };
+        }
 
         return { success: true, message: 'Verification code sent' };
       },

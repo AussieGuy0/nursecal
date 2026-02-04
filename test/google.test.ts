@@ -54,14 +54,17 @@ mock.module('../server/google', () => ({
 }));
 
 import { createApp } from '../server/app';
+import { createInMemoryEmailService } from '../server/email';
 
 // ─── Test setup ───────────────────────────────────────────────────────────────
 
 const TEST_DB_PATH = join(tmpdir(), `nursecal-google-test-${Date.now()}.db`);
+const emailService = createInMemoryEmailService();
 
 const { app, getOTC } = createApp({
   dbPath: TEST_DB_PATH,
   jwtSecret: 'test-secret',
+  emailService,
 });
 
 const BASE = 'http://localhost';

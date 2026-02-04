@@ -3,12 +3,15 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 import { unlinkSync } from 'fs';
 import { createApp } from '../server/app';
+import { createInMemoryEmailService } from '../server/email';
 
 const TEST_DB_PATH = join(tmpdir(), `nursecal-test-${Date.now()}.db`);
+const emailService = createInMemoryEmailService();
 
 const { app, getOTC } = createApp({
   dbPath: TEST_DB_PATH,
   jwtSecret: 'test-secret',
+  emailService,
 });
 
 const BASE = 'http://localhost';
@@ -58,8 +61,14 @@ describe('Auth', () => {
   let cookie: string;
 
   test('register flow (initiate + verify)', async () => {
+    const sentBefore = emailService.sent.length;
     cookie = await registerUser(email, password);
     expect(cookie).toContain('auth=');
+
+    const sent = emailService.sent.slice(sentBefore);
+    expect(sent).toHaveLength(1);
+    expect(sent[0].to).toBe(email);
+    expect(sent[0].subject).toContain('verification code');
   });
 
   test('GET /api/auth/me returns authenticated after register', async () => {
