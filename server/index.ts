@@ -32,6 +32,7 @@ const { app } = createApp({
   dbPath: process.env.NODE_ENV === 'production' ? '/app/data/nursecal.db' : './nursecal.db',
   jwtSecret: process.env.JWT_SECRET,
   emailService,
+  domain: process.env.DOMAIN,
 });
 
 app.listen(PORT);
