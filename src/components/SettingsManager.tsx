@@ -33,6 +33,7 @@ export function SettingsManager({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [formData, setFormData] = useState({ shortCode: '', name: '', color: '#3b82f6' });
+  const [deletingLabel, setDeletingLabel] = useState<Label | null>(null);
   const { addToast } = useToast();
 
   const resetForm = () => {
@@ -55,11 +56,13 @@ export function SettingsManager({
     }
   };
 
-  const handleDelete = async (id: string) => {
-    const result = await onDelete(id);
+  const handleDelete = async () => {
+    if (!deletingLabel) return;
+    const result = await onDelete(deletingLabel.id);
     if (!result.success) {
       addToast(result.error!, 'error');
     }
+    setDeletingLabel(null);
   };
 
   const handleGoogleConnect = async () => {
@@ -138,7 +141,7 @@ export function SettingsManager({
                     </svg>
                   </button>
                   <button
-                    onClick={() => handleDelete(label.id)}
+                    onClick={() => setDeletingLabel(label)}
                     className="p-2 rounded-full hover:bg-red-100 text-red-600"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -270,6 +273,35 @@ export function SettingsManager({
           )}
         </div>
       </div>
+
+      {/* Delete confirmation dialog */}
+      {deletingLabel && (
+        <>
+          <div className="absolute inset-0 z-10 bg-black/40 rounded-2xl" onClick={() => setDeletingLabel(null)} />
+          <div className="absolute z-20 inset-0 flex items-center justify-center p-6">
+            <div className="bg-white rounded-xl shadow-lg p-5 w-full max-w-xs">
+              <h3 className="text-base font-semibold text-gray-900 mb-2">Delete label?</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Are you sure you want to delete <strong>{deletingLabel.name}</strong>? This will also remove it from any assigned days.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setDeletingLabel(null)}
+                  className="flex-1 py-2 px-4 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDelete}
+                  className="flex-1 py-2 px-4 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
