@@ -9,14 +9,13 @@ interface SmtpConfig {
   port: number;
   username: string;
   password: string;
-  secure?: boolean;
 }
 
-export function createSmtpEmailService({ host, port, username, password, secure }: SmtpConfig): EmailService {
+export function createSmtpEmailService({ host, port, username, password }: SmtpConfig): EmailService {
   const transporter = nodemailer.createTransport({
     host,
     port,
-    secure: secure ?? port === 465,
+    secure: port === 465,
     auth: { user: username, pass: password },
   });
 
@@ -30,7 +29,7 @@ export function createSmtpEmailService({ host, port, username, password, secure 
 export function createLoggingEmailService(): EmailService {
   return {
     async sendEmail(from, to, subject, html) {
-      console.log(`[Email] From: ${from} | To: ${to} | Subject: ${subject}`);
+      console.log(`[Email] From: ${from} | To: [redacted] | Subject: ${subject}`);
       console.log(`[Email] Body: ${html}`);
     },
   };

@@ -157,12 +157,19 @@ export function createApp({
         // Store OTC in database
         storeOTC(email, code, passwordHash);
 
-        await emailService.sendEmail(
-          'NurseCal <noreply@nursecal.com>',
-          email,
-          'Your NurseCal verification code',
-          `<p>Your verification code is: <strong>${code}</strong></p><p>This code expires in 10 minutes.</p>`,
-        );
+        try {
+          await emailService.sendEmail(
+            'NurseCal <noreply@nursecal.com>',
+            email,
+            'Your NurseCal verification code',
+            `<p>Your verification code is: <strong>${code}</strong></p><p>This code expires in 10 minutes.</p>`,
+          );
+        } catch (err) {
+          console.error('[Email] Failed to send verification code:', err);
+          deleteOTC(email);
+          set.status = 500;
+          return { error: 'Failed to send verification code. Please try again.' };
+        }
 
         return { success: true, message: 'Verification code sent' };
       },

@@ -44,7 +44,6 @@ Then open http://localhost:5173
 | `SMTP_PORT`            | No       | SMTP server port (e.g. `587` for TLS, `465` for SSL).                                |
 | `SMTP_USERNAME`        | No       | SMTP authentication username.                                                        |
 | `SMTP_PASSWORD`        | No       | SMTP authentication password.                                                        |
-| `SMTP_SECURE`          | No       | Set to `true` for SSL. Defaults to `true` when port is `465`.                        |
 | `GOOGLE_CLIENT_ID`     | No       | OAuth 2.0 client ID for Google Calendar integration.                                 |
 | `GOOGLE_CLIENT_SECRET` | No       | OAuth 2.0 client secret.                                                             |
 | `GOOGLE_REDIRECT_URI`  | No       | OAuth callback URL, e.g. `https://yourdomain.com/api/google/callback`.               |

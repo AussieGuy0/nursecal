@@ -14,14 +14,13 @@ if (!process.env.JWT_SECRET) {
 }
 
 let emailService: EmailService;
-const { SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD, SMTP_SECURE } = process.env;
+const { SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD } = process.env;
 if (SMTP_HOST && SMTP_PORT && SMTP_USERNAME && SMTP_PASSWORD) {
   emailService = createSmtpEmailService({
     host: SMTP_HOST,
     port: Number(SMTP_PORT),
     username: SMTP_USERNAME,
     password: SMTP_PASSWORD,
-    secure: SMTP_SECURE ? SMTP_SECURE === 'true' : undefined,
   });
   console.log('Using SMTP email service');
 } else {

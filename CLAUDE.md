@@ -73,7 +73,6 @@ bun test                 # Backend tests (uses temp SQLite DB)
 - `JWT_SECRET` - Required for JWT signing
 - `NODE_ENV` - Set to "production" for secure cookies
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD` - Optional; if all set, emails sent via SMTP. Otherwise logs to console.
-- `SMTP_SECURE` - Optional; defaults to `true` when port is 465
 
 ## Deployment
 
