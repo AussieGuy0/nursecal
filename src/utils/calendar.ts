@@ -14,8 +14,18 @@ export function formatDateKey(year: number, month: number, day: number): string 
 
 export function getMonthName(month: number): string {
   const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
   ];
   return months[month];
 }
@@ -41,7 +51,7 @@ export function getCalendarDays(year: number, month: number): CalendarDay[] {
     days.push({
       day,
       dateKey: formatDateKey(prevYear, prevMonth, day),
-      isCurrentMonth: false
+      isCurrentMonth: false,
     });
   }
 
@@ -50,7 +60,7 @@ export function getCalendarDays(year: number, month: number): CalendarDay[] {
     days.push({
       day,
       dateKey: formatDateKey(year, month, day),
-      isCurrentMonth: true
+      isCurrentMonth: true,
     });
   }
 
@@ -63,7 +73,7 @@ export function getCalendarDays(year: number, month: number): CalendarDay[] {
     days.push({
       day,
       dateKey: formatDateKey(nextYear, nextMonth, day),
-      isCurrentMonth: false
+      isCurrentMonth: false,
     });
   }
 

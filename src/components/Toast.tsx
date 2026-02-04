@@ -12,13 +12,7 @@ const typeStyles: Record<ToastType, string> = {
   info: 'bg-gray-700 text-white',
 };
 
-export function ToastContainer({
-  toasts,
-  onDismiss,
-}: {
-  toasts: Toast[];
-  onDismiss: (id: string) => void;
-}) {
+export function ToastContainer({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id: string) => void }) {
   if (toasts.length === 0) return null;
 
   return (
@@ -29,10 +23,7 @@ export function ToastContainer({
           className={`animate-slide-down rounded-lg px-4 py-3 shadow-lg flex items-center gap-2 ${typeStyles[toast.type]}`}
         >
           <span className="flex-1 text-sm">{toast.message}</span>
-          <button
-            onClick={() => onDismiss(toast.id)}
-            className="shrink-0 p-1 rounded hover:bg-white/20"
-          >
+          <button onClick={() => onDismiss(toast.id)} className="shrink-0 p-1 rounded hover:bg-white/20">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>

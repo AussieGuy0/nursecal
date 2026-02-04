@@ -27,7 +27,7 @@ async function registerUser(email: string, password: string): Promise<string> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
-    })
+    }),
   );
   expect(initRes.status).toBe(200);
 
@@ -41,11 +41,11 @@ async function registerUser(email: string, password: string): Promise<string> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, code: otc!.code }),
-    })
+    }),
   );
   expect(verifyRes.status).toBe(200);
 
-  const cookie = verifyRes.headers.getSetCookie().find(c => c.startsWith('auth='));
+  const cookie = verifyRes.headers.getSetCookie().find((c) => c.startsWith('auth='));
   expect(cookie).toBeDefined();
   return cookie!.split(';')[0]; // "auth=<token>"
 }
@@ -66,7 +66,7 @@ describe('Auth', () => {
     const res = await app.handle(
       new Request(`${BASE}/api/auth/me`, {
         headers: { Cookie: cookie },
-      })
+      }),
     );
     const body = await res.json();
     expect(body.authenticated).toBe(true);
@@ -79,7 +79,7 @@ describe('Auth', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
-      })
+      }),
     );
     expect(res.status).toBe(400);
   });
@@ -90,7 +90,7 @@ describe('Auth', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
-      })
+      }),
     );
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -103,7 +103,7 @@ describe('Auth', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password: 'wrongpassword' }),
-      })
+      }),
     );
     expect(res.status).toBe(401);
   });
@@ -113,7 +113,7 @@ describe('Auth', () => {
       new Request(`${BASE}/api/auth/logout`, {
         method: 'POST',
         headers: { Cookie: cookie },
-      })
+      }),
     );
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -148,7 +148,7 @@ describe('Labels', () => {
     const res = await app.handle(
       new Request(`${BASE}/api/labels`, {
         headers: { Cookie: cookie },
-      })
+      }),
     );
     expect(res.status).toBe(200);
     const labels = await res.json();
@@ -163,7 +163,7 @@ describe('Labels', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Cookie: cookie },
         body: JSON.stringify({ shortCode: 'D', name: 'Day Off', color: '#ef4444' }),
-      })
+      }),
     );
     expect(res.status).toBe(201);
     const label = await res.json();
@@ -178,7 +178,7 @@ describe('Labels', () => {
     const listRes = await app.handle(
       new Request(`${BASE}/api/labels`, {
         headers: { Cookie: cookie },
-      })
+      }),
     );
     const labels = await listRes.json();
     const target = labels.find((l: any) => l.shortCode === 'D');
@@ -188,7 +188,7 @@ describe('Labels', () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Cookie: cookie },
         body: JSON.stringify({ name: 'Rest Day' }),
-      })
+      }),
     );
     expect(res.status).toBe(200);
     const updated = await res.json();
@@ -200,7 +200,7 @@ describe('Labels', () => {
     const listRes = await app.handle(
       new Request(`${BASE}/api/labels`, {
         headers: { Cookie: cookie },
-      })
+      }),
     );
     const labels = await listRes.json();
     const target = labels.find((l: any) => l.shortCode === 'D');
@@ -209,7 +209,7 @@ describe('Labels', () => {
       new Request(`${BASE}/api/labels/${target.id}`, {
         method: 'DELETE',
         headers: { Cookie: cookie },
-      })
+      }),
     );
     expect(res.status).toBe(200);
 
@@ -217,7 +217,7 @@ describe('Labels', () => {
     const afterRes = await app.handle(
       new Request(`${BASE}/api/labels`, {
         headers: { Cookie: cookie },
-      })
+      }),
     );
     const after = await afterRes.json();
     expect(after).toBeArrayOfSize(3); // back to default 3
@@ -229,7 +229,7 @@ describe('Labels', () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Cookie: cookie },
         body: JSON.stringify({ name: 'Nope' }),
-      })
+      }),
     );
     expect(res.status).toBe(404);
   });
@@ -248,7 +248,7 @@ describe('Calendar', () => {
     const res = await app.handle(
       new Request(`${BASE}/api/calendar`, {
         headers: { Cookie: cookie },
-      })
+      }),
     );
     expect(res.status).toBe(200);
     const data = await res.json();
@@ -262,7 +262,7 @@ describe('Calendar', () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Cookie: cookie },
         body: JSON.stringify(shifts),
-      })
+      }),
     );
     expect(res.status).toBe(200);
     const data = await res.json();
@@ -273,7 +273,7 @@ describe('Calendar', () => {
     const res = await app.handle(
       new Request(`${BASE}/api/calendar`, {
         headers: { Cookie: cookie },
-      })
+      }),
     );
     expect(res.status).toBe(200);
     const data = await res.json();
@@ -288,13 +288,13 @@ describe('Calendar', () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Cookie: cookie },
         body: JSON.stringify(newShifts),
-      })
+      }),
     );
 
     const res = await app.handle(
       new Request(`${BASE}/api/calendar`, {
         headers: { Cookie: cookie },
-      })
+      }),
     );
     const data = await res.json();
     expect(data).toEqual(newShifts);

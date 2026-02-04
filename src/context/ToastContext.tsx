@@ -16,11 +16,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const addToast = useCallback((message: string, type: ToastType = 'error') => {
-    const id = String(++nextId);
-    setToasts((prev) => [...prev.slice(-2), { id, message, type }]); // max 3
-    setTimeout(() => dismiss(id), 4000);
-  }, [dismiss]);
+  const addToast = useCallback(
+    (message: string, type: ToastType = 'error') => {
+      const id = String(++nextId);
+      setToasts((prev) => [...prev.slice(-2), { id, message, type }]); // max 3
+      setTimeout(() => dismiss(id), 4000);
+    },
+    [dismiss],
+  );
 
   return (
     <ToastContext.Provider value={{ addToast }}>

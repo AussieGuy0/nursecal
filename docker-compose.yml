@@ -2,7 +2,7 @@ services:
   app:
     build: .
     ports:
-      - "3123:3123"
+      - '3123:3123'
     volumes:
       - data:/app/data
     environment:

@@ -36,43 +36,49 @@ export function useShifts(authenticated: boolean, onSyncError?: (error: string) 
   }, [fetchShifts]);
 
   // Debounced sync to backend
-  const syncToBackend = useCallback(async (newShifts: ShiftMap) => {
-    try {
-      const res = await fetch('/api/calendar', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newShifts),
-      });
-      if (res.ok) {
-        lastSyncedShifts.current = newShifts;
-      } else {
+  const syncToBackend = useCallback(
+    async (newShifts: ShiftMap) => {
+      try {
+        const res = await fetch('/api/calendar', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newShifts),
+        });
+        if (res.ok) {
+          lastSyncedShifts.current = newShifts;
+        } else {
+          setShifts(lastSyncedShifts.current);
+          onSyncError?.('Failed to save shifts');
+        }
+      } catch {
         setShifts(lastSyncedShifts.current);
-        onSyncError?.('Failed to save shifts');
+        onSyncError?.('Network error — shifts could not be saved');
       }
-    } catch {
-      setShifts(lastSyncedShifts.current);
-      onSyncError?.('Network error — shifts could not be saved');
-    }
-  }, [onSyncError]);
+    },
+    [onSyncError],
+  );
 
   // Queue sync with debouncing
-  const queueSync = useCallback((newShifts: ShiftMap) => {
-    pendingSync.current = newShifts;
+  const queueSync = useCallback(
+    (newShifts: ShiftMap) => {
+      pendingSync.current = newShifts;
 
-    if (syncTimeout.current) {
-      clearTimeout(syncTimeout.current);
-    }
-
-    syncTimeout.current = setTimeout(() => {
-      if (pendingSync.current) {
-        syncToBackend(pendingSync.current);
-        pendingSync.current = null;
+      if (syncTimeout.current) {
+        clearTimeout(syncTimeout.current);
       }
-    }, 500); // Debounce 500ms
-  }, [syncToBackend]);
+
+      syncTimeout.current = setTimeout(() => {
+        if (pendingSync.current) {
+          syncToBackend(pendingSync.current);
+          pendingSync.current = null;
+        }
+      }, 500); // Debounce 500ms
+    },
+    [syncToBackend],
+  );
 
   const setShift = (date: string, labelId: string) => {
-    setShifts(prev => {
+    setShifts((prev) => {
       const next = { ...prev, [date]: labelId };
       queueSync(next);
       return next;
@@ -80,7 +86,7 @@ export function useShifts(authenticated: boolean, onSyncError?: (error: string) 
   };
 
   const clearShift = (date: string) => {
-    setShifts(prev => {
+    setShifts((prev) => {
       const next = { ...prev };
       delete next[date];
       queueSync(next);

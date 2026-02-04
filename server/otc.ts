@@ -11,12 +11,10 @@ interface OTCRecord {
 
 export function createOTCService(db: Database) {
   const otcQueries = {
-    find: db.prepare<OTCRecord, [string]>(
-      'SELECT * FROM otc WHERE email = ?'
-    ),
+    find: db.prepare<OTCRecord, [string]>('SELECT * FROM otc WHERE email = ?'),
 
     upsert: db.prepare(
-      'INSERT INTO otc (email, code, password_hash, expires_at) VALUES (?, ?, ?, ?) ON CONFLICT(email) DO UPDATE SET code = excluded.code, password_hash = excluded.password_hash, expires_at = excluded.expires_at'
+      'INSERT INTO otc (email, code, password_hash, expires_at) VALUES (?, ?, ?, ?) ON CONFLICT(email) DO UPDATE SET code = excluded.code, password_hash = excluded.password_hash, expires_at = excluded.expires_at',
     ),
 
     delete: db.prepare('DELETE FROM otc WHERE email = ?'),

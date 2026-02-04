@@ -36,10 +36,7 @@ export function GoogleEventDetails({ event, onClose }: GoogleEventDetailsProps) 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
       {/* Modal */}
       <div className="relative w-full max-w-lg bg-white rounded-t-2xl safe-bottom">
@@ -52,10 +49,7 @@ export function GoogleEventDetails({ event, onClose }: GoogleEventDetailsProps) 
               />
               <h2 className="text-lg font-semibold break-words">{event.summary || '(No title)'}</h2>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 -mr-2 rounded-full hover:bg-gray-100 flex-shrink-0"
-            >
+            <button onClick={onClose} className="p-2 -mr-2 rounded-full hover:bg-gray-100 flex-shrink-0">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -66,7 +60,12 @@ export function GoogleEventDetails({ event, onClose }: GoogleEventDetailsProps) 
             {/* Time */}
             <div className="flex items-center gap-3 text-gray-600">
               <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
               <span className="text-sm">{formatEventTime(event)}</span>
             </div>
@@ -75,7 +74,12 @@ export function GoogleEventDetails({ event, onClose }: GoogleEventDetailsProps) 
             {event.calendarName && (
               <div className="flex items-center gap-3 text-gray-600">
                 <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
                 </svg>
                 <span className="text-sm">{event.calendarName}</span>
               </div>

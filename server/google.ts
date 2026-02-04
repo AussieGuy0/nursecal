@@ -114,7 +114,7 @@ export async function revokeToken(token: string): Promise<boolean> {
 export async function fetchAllCalendarEvents(
   accessToken: string,
   timeMin: string,
-  timeMax: string
+  timeMax: string,
 ): Promise<GoogleCalendarEventResponse[] | null> {
   const headers = { Authorization: `Bearer ${accessToken}` };
 
@@ -132,10 +132,9 @@ export async function fetchAllCalendarEvents(
       maxResults: '250',
     });
 
-    const eventsRes = await fetch(
-      `${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(cal.id)}/events?${params}`,
-      { headers }
-    );
+    const eventsRes = await fetch(`${GOOGLE_CALENDAR_API}/calendars/${encodeURIComponent(cal.id)}/events?${params}`, {
+      headers,
+    });
 
     if (!eventsRes.ok) return [];
 

@@ -7,9 +7,7 @@ import { unlinkSync } from 'fs';
 
 let stateCounter = 0;
 
-const mockBuildAuthUrl = mock(
-  (state: string) => `https://accounts.google.com/o/oauth2/v2/auth?state=${state}`
-);
+const mockBuildAuthUrl = mock((state: string) => `https://accounts.google.com/o/oauth2/v2/auth?state=${state}`);
 
 const mockExchangeCodeForTokens = mock(() =>
   Promise.resolve({
@@ -18,7 +16,7 @@ const mockExchangeCodeForTokens = mock(() =>
     expires_in: 3600,
     scope: 'https://www.googleapis.com/auth/calendar.readonly',
     token_type: 'Bearer',
-  })
+  }),
 );
 
 const mockRefreshAccessToken = mock(() =>
@@ -27,7 +25,7 @@ const mockRefreshAccessToken = mock(() =>
     expires_in: 3600,
     scope: 'https://www.googleapis.com/auth/calendar.readonly',
     token_type: 'Bearer',
-  })
+  }),
 );
 
 const mockRevokeToken = mock(() => Promise.resolve(true));
@@ -43,7 +41,7 @@ const mockFetchAllCalendarEvents = mock(() =>
       calendarName: 'Primary',
       color: '#4285f4',
     },
-  ])
+  ]),
 );
 
 mock.module('../server/google', () => ({
@@ -69,7 +67,9 @@ const { app, getOTC } = createApp({
 const BASE = 'http://localhost';
 
 afterAll(() => {
-  try { unlinkSync(TEST_DB_PATH); } catch {}
+  try {
+    unlinkSync(TEST_DB_PATH);
+  } catch {}
 });
 
 async function registerUser(email: string, password: string): Promise<string> {
@@ -78,7 +78,7 @@ async function registerUser(email: string, password: string): Promise<string> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
-    })
+    }),
   );
   expect(initRes.status).toBe(200);
 
@@ -90,11 +90,11 @@ async function registerUser(email: string, password: string): Promise<string> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, code: otc!.code }),
-    })
+    }),
   );
   expect(verifyRes.status).toBe(200);
 
-  const cookie = verifyRes.headers.getSetCookie().find(c => c.startsWith('auth='));
+  const cookie = verifyRes.headers.getSetCookie().find((c) => c.startsWith('auth='));
   expect(cookie).toBeDefined();
   return cookie!.split(';')[0];
 }
@@ -108,9 +108,7 @@ describe('Google Calendar - Unauthenticated', () => {
   });
 
   test('GET /api/google/callback returns 401', async () => {
-    const res = await app.handle(
-      new Request(`${BASE}/api/google/callback?code=x&state=y`)
-    );
+    const res = await app.handle(new Request(`${BASE}/api/google/callback?code=x&state=y`));
     expect(res.status).toBe(401);
   });
 
@@ -120,23 +118,17 @@ describe('Google Calendar - Unauthenticated', () => {
   });
 
   test('POST /api/google/disconnect returns 401', async () => {
-    const res = await app.handle(
-      new Request(`${BASE}/api/google/disconnect`, { method: 'POST' })
-    );
+    const res = await app.handle(new Request(`${BASE}/api/google/disconnect`, { method: 'POST' }));
     expect(res.status).toBe(401);
   });
 
   test('POST /api/google/toggle returns 401', async () => {
-    const res = await app.handle(
-      new Request(`${BASE}/api/google/toggle`, { method: 'POST' })
-    );
+    const res = await app.handle(new Request(`${BASE}/api/google/toggle`, { method: 'POST' }));
     expect(res.status).toBe(401);
   });
 
   test('GET /api/google/events returns 401', async () => {
-    const res = await app.handle(
-      new Request(`${BASE}/api/google/events?timeMin=2025-03-01&timeMax=2025-03-31`)
-    );
+    const res = await app.handle(new Request(`${BASE}/api/google/events?timeMin=2025-03-01&timeMax=2025-03-31`));
     expect(res.status).toBe(401);
   });
 });
@@ -157,7 +149,7 @@ describe('Google Calendar', () => {
       const res = await app.handle(
         new Request(`${BASE}/api/google/auth`, {
           headers: { Cookie: cookie },
-        })
+        }),
       );
       expect(res.status).toBe(200);
       const body = await res.json();
@@ -171,7 +163,7 @@ describe('Google Calendar', () => {
       const res = await app.handle(
         new Request(`${BASE}/api/google/auth`, {
           headers: { Cookie: cookie },
-        })
+        }),
       );
       expect(res.status).toBe(500);
       const body = await res.json();
@@ -186,7 +178,7 @@ describe('Google Calendar', () => {
       const res = await app.handle(
         new Request(`${BASE}/api/google/status`, {
           headers: { Cookie: cookie },
-        })
+        }),
       );
       expect(res.status).toBe(200);
       const body = await res.json();
@@ -203,7 +195,7 @@ describe('Google Calendar', () => {
         new Request(`${BASE}/api/google/toggle`, {
           method: 'POST',
           headers: { Cookie: cookie },
-        })
+        }),
       );
       expect(res.status).toBe(400);
       const body = await res.json();
@@ -216,7 +208,7 @@ describe('Google Calendar', () => {
       const res = await app.handle(
         new Request(`${BASE}/api/google/events?timeMin=2025-03-01T00:00:00Z&timeMax=2025-03-31T00:00:00Z`, {
           headers: { Cookie: cookie },
-        })
+        }),
       );
       expect(res.status).toBe(400);
       const body = await res.json();
@@ -231,7 +223,7 @@ describe('Google Calendar', () => {
       const res = await app.handle(
         new Request(`${BASE}/api/google/callback?state=some-state`, {
           headers: { Cookie: cookie },
-        })
+        }),
       );
       expect(res.status).toBe(400);
       const body = await res.json();
@@ -242,7 +234,7 @@ describe('Google Calendar', () => {
       const res = await app.handle(
         new Request(`${BASE}/api/google/callback?code=some-code`, {
           headers: { Cookie: cookie },
-        })
+        }),
       );
       expect(res.status).toBe(400);
       const body = await res.json();
@@ -253,7 +245,7 @@ describe('Google Calendar', () => {
       const res = await app.handle(
         new Request(`${BASE}/api/google/callback?code=test-code&state=nonexistent-state`, {
           headers: { Cookie: cookie },
-        })
+        }),
       );
       expect(res.status).toBe(403);
       const body = await res.json();
@@ -266,7 +258,7 @@ describe('Google Calendar', () => {
       const authRes = await app.handle(
         new Request(`${BASE}/api/google/auth`, {
           headers: { Cookie: otherCookie },
-        })
+        }),
       );
       const { url } = await authRes.json();
       const otherState = new URL(url).searchParams.get('state')!;
@@ -275,7 +267,7 @@ describe('Google Calendar', () => {
       const res = await app.handle(
         new Request(`${BASE}/api/google/callback?code=test-code&state=${otherState}`, {
           headers: { Cookie: cookie },
-        })
+        }),
       );
       expect(res.status).toBe(403);
     });
@@ -285,7 +277,7 @@ describe('Google Calendar', () => {
       const authRes = await app.handle(
         new Request(`${BASE}/api/google/auth`, {
           headers: { Cookie: cookie },
-        })
+        }),
       );
       const { url } = await authRes.json();
       const state = new URL(url).searchParams.get('state')!;
@@ -295,7 +287,7 @@ describe('Google Calendar', () => {
       const res = await app.handle(
         new Request(`${BASE}/api/google/callback?code=bad-code&state=${state}`, {
           headers: { Cookie: cookie },
-        })
+        }),
       );
       expect(res.status).toBe(400);
       const body = await res.json();
@@ -306,7 +298,7 @@ describe('Google Calendar', () => {
       const authRes = await app.handle(
         new Request(`${BASE}/api/google/auth`, {
           headers: { Cookie: cookie },
-        })
+        }),
       );
       const { url } = await authRes.json();
       const state = new URL(url).searchParams.get('state')!;
@@ -318,13 +310,13 @@ describe('Google Calendar', () => {
           scope: 'calendar.readonly',
           token_type: 'Bearer',
           // no refresh_token
-        })
+        }),
       );
 
       const res = await app.handle(
         new Request(`${BASE}/api/google/callback?code=test-code&state=${state}`, {
           headers: { Cookie: cookie },
-        })
+        }),
       );
       expect(res.status).toBe(400);
       const body = await res.json();
@@ -335,7 +327,7 @@ describe('Google Calendar', () => {
       const authRes = await app.handle(
         new Request(`${BASE}/api/google/auth`, {
           headers: { Cookie: cookie },
-        })
+        }),
       );
       const { url } = await authRes.json();
       const state = new URL(url).searchParams.get('state')!;
@@ -343,7 +335,7 @@ describe('Google Calendar', () => {
       const res = await app.handle(
         new Request(`${BASE}/api/google/callback?code=valid-code&state=${state}`, {
           headers: { Cookie: cookie },
-        })
+        }),
       );
       expect(res.status).toBe(302);
       expect(res.headers.get('location')).toBe('/');
@@ -353,7 +345,7 @@ describe('Google Calendar', () => {
       const statusRes = await app.handle(
         new Request(`${BASE}/api/google/status`, {
           headers: { Cookie: cookie },
-        })
+        }),
       );
       const status = await statusRes.json();
       expect(status.connected).toBe(true);
@@ -367,7 +359,7 @@ describe('Google Calendar', () => {
       const res = await app.handle(
         new Request(`${BASE}/api/google/status`, {
           headers: { Cookie: cookie },
-        })
+        }),
       );
       expect(res.status).toBe(200);
       const body = await res.json();
@@ -384,7 +376,7 @@ describe('Google Calendar', () => {
         new Request(`${BASE}/api/google/toggle`, {
           method: 'POST',
           headers: { Cookie: cookie },
-        })
+        }),
       );
       expect(res.status).toBe(200);
       const body = await res.json();
@@ -396,7 +388,7 @@ describe('Google Calendar', () => {
         new Request(`${BASE}/api/google/toggle`, {
           method: 'POST',
           headers: { Cookie: cookie },
-        })
+        }),
       );
       expect(res.status).toBe(200);
       const body = await res.json();
@@ -411,7 +403,7 @@ describe('Google Calendar', () => {
       const res = await app.handle(
         new Request(`${BASE}/api/google/events`, {
           headers: { Cookie: cookie },
-        })
+        }),
       );
       expect(res.status).toBe(400);
       const body = await res.json();
@@ -422,7 +414,7 @@ describe('Google Calendar', () => {
       const res = await app.handle(
         new Request(`${BASE}/api/google/events?timeMin=not-a-date&timeMax=also-not`, {
           headers: { Cookie: cookie },
-        })
+        }),
       );
       expect(res.status).toBe(400);
       const body = await res.json();
@@ -433,7 +425,7 @@ describe('Google Calendar', () => {
       const res = await app.handle(
         new Request(`${BASE}/api/google/events?timeMin=2025-01-01T00:00:00Z&timeMax=2025-07-01T00:00:00Z`, {
           headers: { Cookie: cookie },
-        })
+        }),
       );
       expect(res.status).toBe(400);
       const body = await res.json();
@@ -444,7 +436,7 @@ describe('Google Calendar', () => {
       const res = await app.handle(
         new Request(`${BASE}/api/google/events?timeMin=2025-03-31T00:00:00Z&timeMax=2025-03-01T00:00:00Z`, {
           headers: { Cookie: cookie },
-        })
+        }),
       );
       expect(res.status).toBe(400);
       const body = await res.json();
@@ -457,13 +449,13 @@ describe('Google Calendar', () => {
         new Request(`${BASE}/api/google/toggle`, {
           method: 'POST',
           headers: { Cookie: cookie },
-        })
+        }),
       );
 
       const res = await app.handle(
         new Request(`${BASE}/api/google/events?timeMin=2025-03-01T00:00:00Z&timeMax=2025-03-31T00:00:00Z`, {
           headers: { Cookie: cookie },
-        })
+        }),
       );
       expect(res.status).toBe(200);
       const body = await res.json();
@@ -474,7 +466,7 @@ describe('Google Calendar', () => {
         new Request(`${BASE}/api/google/toggle`, {
           method: 'POST',
           headers: { Cookie: cookie },
-        })
+        }),
       );
     });
 
@@ -482,7 +474,7 @@ describe('Google Calendar', () => {
       const res = await app.handle(
         new Request(`${BASE}/api/google/events?timeMin=2025-03-01T00:00:00Z&timeMax=2025-03-31T00:00:00Z`, {
           headers: { Cookie: cookie },
-        })
+        }),
       );
       expect(res.status).toBe(200);
       const events = await res.json();
@@ -498,7 +490,7 @@ describe('Google Calendar', () => {
       const res = await app.handle(
         new Request(`${BASE}/api/google/events?timeMin=2025-03-01T00:00:00Z&timeMax=2025-03-31T00:00:00Z`, {
           headers: { Cookie: cookie },
-        })
+        }),
       );
       expect(res.status).toBe(502);
       const body = await res.json();
@@ -514,7 +506,7 @@ describe('Google Calendar', () => {
         new Request(`${BASE}/api/google/disconnect`, {
           method: 'POST',
           headers: { Cookie: cookie },
-        })
+        }),
       );
       expect(res.status).toBe(200);
       const body = await res.json();
@@ -526,7 +518,7 @@ describe('Google Calendar', () => {
       const res = await app.handle(
         new Request(`${BASE}/api/google/status`, {
           headers: { Cookie: cookie },
-        })
+        }),
       );
       expect(res.status).toBe(200);
       const body = await res.json();
@@ -538,7 +530,7 @@ describe('Google Calendar', () => {
         new Request(`${BASE}/api/google/disconnect`, {
           method: 'POST',
           headers: { Cookie: cookie },
-        })
+        }),
       );
       expect(res.status).toBe(200);
       const body = await res.json();

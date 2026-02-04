@@ -11,7 +11,16 @@ interface DayCellProps {
   onGoogleEventTap?: (event: GoogleCalendarEvent) => void;
 }
 
-export function DayCell({ day, dateKey, isCurrentMonth, label, isToday, onTap, googleEvents, onGoogleEventTap }: DayCellProps) {
+export function DayCell({
+  day,
+  dateKey,
+  isCurrentMonth,
+  label,
+  isToday,
+  onTap,
+  googleEvents,
+  onGoogleEventTap,
+}: DayCellProps) {
   const visibleEvents = googleEvents?.slice(0, 2) || [];
   const extraCount = (googleEvents?.length || 0) - 2;
 
@@ -36,10 +45,7 @@ export function DayCell({ day, dateKey, isCurrentMonth, label, isToday, onTap, g
       </span>
 
       {label && (
-        <span
-          className="mt-1 px-2 py-1 text-sm font-bold rounded text-white"
-          style={{ backgroundColor: label.color }}
-        >
+        <span className="mt-1 px-2 py-1 text-sm font-bold rounded text-white" style={{ backgroundColor: label.color }}>
           {label.shortCode}
         </span>
       )}
@@ -57,11 +63,7 @@ export function DayCell({ day, dateKey, isCurrentMonth, label, isToday, onTap, g
         </span>
       ))}
 
-      {extraCount > 0 && (
-        <span className="text-[10px] text-amber-600 font-medium">
-          +{extraCount} more
-        </span>
-      )}
+      {extraCount > 0 && <span className="text-[10px] text-amber-600 font-medium">+{extraCount} more</span>}
     </button>
   );
 }

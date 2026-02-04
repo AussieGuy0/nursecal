@@ -19,12 +19,14 @@ A PWA for nurses to track shifts on a monthly calendar. Tap a day to assign a cu
 ## Development
 
 Start the backend server:
+
 ```bash
 bun install
 bun run dev
 ```
 
 For frontend hot-reload, run in a separate terminal:
+
 ```bash
 bun run dev:frontend
 ```
@@ -33,14 +35,14 @@ Then open http://localhost:5173
 
 ## Environment Variables
 
-| Variable | Required | Description |
-|---|---|---|
-| `JWT_SECRET` | Yes | Secret key for signing JWT auth tokens. Can generate with `openssl rand -base64 32`. |
-| `NODE_ENV` | No | Set to `production` in prod, otherwise can leave.
-| `PORT` | No | Server port. Defaults to `3123`. |
-| `GOOGLE_CLIENT_ID` | No | OAuth 2.0 client ID for Google Calendar integration. |
-| `GOOGLE_CLIENT_SECRET` | No | OAuth 2.0 client secret. |
-| `GOOGLE_REDIRECT_URI` | No | OAuth callback URL, e.g. `https://yourdomain.com/api/google/callback`. |
+| Variable               | Required | Description                                                                          |
+| ---------------------- | -------- | ------------------------------------------------------------------------------------ |
+| `JWT_SECRET`           | Yes      | Secret key for signing JWT auth tokens. Can generate with `openssl rand -base64 32`. |
+| `NODE_ENV`             | No       | Set to `production` in prod, otherwise can leave.                                    |
+| `PORT`                 | No       | Server port. Defaults to `3123`.                                                     |
+| `GOOGLE_CLIENT_ID`     | No       | OAuth 2.0 client ID for Google Calendar integration.                                 |
+| `GOOGLE_CLIENT_SECRET` | No       | OAuth 2.0 client secret.                                                             |
+| `GOOGLE_REDIRECT_URI`  | No       | OAuth callback URL, e.g. `https://yourdomain.com/api/google/callback`.               |
 
 ### Google Calendar setup
 
@@ -58,6 +60,7 @@ The app requests `calendar.readonly` scope only.
 ## Production
 
 Build and run:
+
 ```bash
 bun run build
 bun run start

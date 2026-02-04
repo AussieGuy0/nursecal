@@ -39,7 +39,7 @@ export function useLabels(authenticated: boolean) {
       });
       if (res.ok) {
         const newLabel = await res.json();
-        setLabels(prev => [...prev, newLabel]);
+        setLabels((prev) => [...prev, newLabel]);
         return { success: true };
       }
       const body = await res.json().catch(() => null);
@@ -58,9 +58,7 @@ export function useLabels(authenticated: boolean) {
       });
       if (res.ok) {
         const updatedLabel = await res.json();
-        setLabels(prev => prev.map(label =>
-          label.id === id ? updatedLabel : label
-        ));
+        setLabels((prev) => prev.map((label) => (label.id === id ? updatedLabel : label)));
         return { success: true };
       }
       const body = await res.json().catch(() => null);
@@ -76,7 +74,7 @@ export function useLabels(authenticated: boolean) {
         method: 'DELETE',
       });
       if (res.ok) {
-        setLabels(prev => prev.filter(label => label.id !== id));
+        setLabels((prev) => prev.filter((label) => label.id !== id));
         return { success: true };
       }
       const body = await res.json().catch(() => null);
@@ -87,7 +85,7 @@ export function useLabels(authenticated: boolean) {
   };
 
   const getLabelById = (id: string): Label | undefined => {
-    return labels.find(label => label.id === id);
+    return labels.find((label) => label.id === id);
   };
 
   return {

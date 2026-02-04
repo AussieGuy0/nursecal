@@ -54,7 +54,9 @@ export function useGoogleCalendar(authenticated: boolean, year: number, month: n
     const timeMax = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
 
     try {
-      const res = await fetch(`/api/google/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`);
+      const res = await fetch(
+        `/api/google/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`,
+      );
       if (res.ok) {
         const events: GoogleCalendarEvent[] = await res.json();
         setState((prev) => ({ ...prev, events, loading: false }));

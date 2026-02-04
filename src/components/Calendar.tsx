@@ -29,7 +29,17 @@ function getAnimationClass(direction: SlideDirection, phase: SlidePhase): string
   return direction === 'left' ? 'animate-slide-in-from-right' : 'animate-slide-in-from-left';
 }
 
-export function Calendar({ year, month, shifts, labels, onDayTap, onSwipeLeft, onSwipeRight, googleEventsByDate, onGoogleEventTap }: CalendarProps) {
+export function Calendar({
+  year,
+  month,
+  shifts,
+  labels,
+  onDayTap,
+  onSwipeLeft,
+  onSwipeRight,
+  googleEventsByDate,
+  onGoogleEventTap,
+}: CalendarProps) {
   const days = getCalendarDays(year, month);
   const today = new Date();
   const todayKey = formatDateKey(today.getFullYear(), today.getMonth(), today.getDate());
@@ -43,34 +53,40 @@ export function Calendar({ year, month, shifts, labels, onDayTap, onSwipeLeft, o
 
   const isAnimating = slideDirection !== null;
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (isAnimating) return;
-    touchStartX.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY;
-  }, [isAnimating]);
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      if (isAnimating) return;
+      touchStartX.current = e.touches[0].clientX;
+      touchStartY.current = e.touches[0].clientY;
+    },
+    [isAnimating],
+  );
 
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (isAnimating) return;
-    if (touchStartX.current === null || touchStartY.current === null) return;
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      if (isAnimating) return;
+      if (touchStartX.current === null || touchStartY.current === null) return;
 
-    const deltaX = e.changedTouches[0].clientX - touchStartX.current;
-    const deltaY = e.changedTouches[0].clientY - touchStartY.current;
+      const deltaX = e.changedTouches[0].clientX - touchStartX.current;
+      const deltaY = e.changedTouches[0].clientY - touchStartY.current;
 
-    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > SWIPE_THRESHOLD) {
-      if (deltaX > 0 && onSwipeRight) {
-        pendingSwipe.current = onSwipeRight;
-        setSlideDirection('right');
-        setSlidePhase('out');
-      } else if (deltaX < 0 && onSwipeLeft) {
-        pendingSwipe.current = onSwipeLeft;
-        setSlideDirection('left');
-        setSlidePhase('out');
+      if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > SWIPE_THRESHOLD) {
+        if (deltaX > 0 && onSwipeRight) {
+          pendingSwipe.current = onSwipeRight;
+          setSlideDirection('right');
+          setSlidePhase('out');
+        } else if (deltaX < 0 && onSwipeLeft) {
+          pendingSwipe.current = onSwipeLeft;
+          setSlideDirection('left');
+          setSlidePhase('out');
+        }
       }
-    }
 
-    touchStartX.current = null;
-    touchStartY.current = null;
-  }, [isAnimating, onSwipeLeft, onSwipeRight]);
+      touchStartX.current = null;
+      touchStartY.current = null;
+    },
+    [isAnimating, onSwipeLeft, onSwipeRight],
+  );
 
   const handleAnimationEnd = useCallback(() => {
     if (slidePhase === 'out') {
@@ -84,26 +100,17 @@ export function Calendar({ year, month, shifts, labels, onDayTap, onSwipeLeft, o
   }, [slidePhase]);
 
   const getLabelById = (id: string): Label | undefined => {
-    return labels.find(l => l.id === id);
+    return labels.find((l) => l.id === id);
   };
 
-  const animationClass = slideDirection && slidePhase
-    ? getAnimationClass(slideDirection, slidePhase)
-    : '';
+  const animationClass = slideDirection && slidePhase ? getAnimationClass(slideDirection, slidePhase) : '';
 
   return (
-    <div
-      className="flex-1 flex flex-col bg-white"
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-    >
+    <div className="flex-1 flex flex-col bg-white" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
       {/* Weekday headers */}
       <div className="grid grid-cols-7 border-b border-gray-200">
-        {WEEKDAYS.map(day => (
-          <div
-            key={day}
-            className="py-2 text-center text-xs font-medium text-gray-500 uppercase"
-          >
+        {WEEKDAYS.map((day) => (
+          <div key={day} className="py-2 text-center text-xs font-medium text-gray-500 uppercase">
             {day}
           </div>
         ))}
@@ -111,10 +118,7 @@ export function Calendar({ year, month, shifts, labels, onDayTap, onSwipeLeft, o
 
       {/* Calendar grid */}
       <div className="overflow-hidden flex-1">
-        <div
-          className={`grid grid-cols-7 h-full ${animationClass}`}
-          onAnimationEnd={handleAnimationEnd}
-        >
+        <div className={`grid grid-cols-7 h-full ${animationClass}`} onAnimationEnd={handleAnimationEnd}>
           {days.map(({ day, dateKey, isCurrentMonth }) => (
             <DayCell
               key={dateKey}

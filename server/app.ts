@@ -5,7 +5,14 @@ import { openapi, fromTypes } from '@elysiajs/openapi';
 import { createDB, generateId } from './db';
 import { createOTCService, generateOTC, maskEmail } from './otc';
 import { DEFAULT_LABELS, type JWTPayload, type LabelResponse, type ShiftMap } from './types';
-import { buildAuthUrl, generateOAuthState, exchangeCodeForTokens, refreshAccessToken, revokeToken, fetchAllCalendarEvents } from './google';
+import {
+  buildAuthUrl,
+  generateOAuthState,
+  exchangeCodeForTokens,
+  refreshAccessToken,
+  revokeToken,
+  fetchAllCalendarEvents,
+} from './google';
 
 // Rate limiting configuration
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
@@ -70,19 +77,21 @@ export function createApp({ dbPath, jwtSecret }: { dbPath: string; jwtSecret: st
       const duration = (performance.now() - requestStart).toFixed(1);
       console.log(`${request.method} ${requestPath} ${set.status ?? 200} ${duration}ms`);
     })
-    .use(openapi({
-      path: '/api/openapi',
-      references: fromTypes(),
-      scalar: {
-        url: '/api/openapi/json'
-      }
-    }))
+    .use(
+      openapi({
+        path: '/api/openapi',
+        references: fromTypes(),
+        scalar: {
+          url: '/api/openapi/json',
+        },
+      }),
+    )
     .use(
       jwt({
         name: 'jwt',
         secret: jwtSecret,
         exp: '30d',
-      })
+      }),
     )
     // Derive user from JWT cookie
     .derive(async ({ jwt, cookie: { auth } }) => {
@@ -92,7 +101,7 @@ export function createApp({ dbPath, jwtSecret }: { dbPath: string; jwtSecret: st
       }
 
       try {
-        const payload = await jwt.verify(token) as JWTPayload | false;
+        const payload = (await jwt.verify(token)) as JWTPayload | false;
         if (!payload) {
           return { user: null as { id: number; email: string } | null };
         }
@@ -112,9 +121,10 @@ export function createApp({ dbPath, jwtSecret }: { dbPath: string; jwtSecret: st
       '/api/auth/register/initiate',
       async ({ body, set, request }) => {
         // Rate limiting
-        const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-          || request.headers.get('x-real-ip')
-          || 'unknown';
+        const ip =
+          request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+          request.headers.get('x-real-ip') ||
+          'unknown';
         const rateLimit = checkRateLimit(`register:${ip}`);
         if (!rateLimit.allowed) {
           set.status = 429;
@@ -148,15 +158,16 @@ export function createApp({ dbPath, jwtSecret }: { dbPath: string; jwtSecret: st
           email: t.String({ format: 'email' }),
           password: t.String({ minLength: 8 }),
         }),
-      }
+      },
     )
     .post(
       '/api/auth/register/verify',
       async ({ body, jwt, cookie: { auth }, set, request }) => {
         // Rate limiting
-        const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-          || request.headers.get('x-real-ip')
-          || 'unknown';
+        const ip =
+          request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+          request.headers.get('x-real-ip') ||
+          'unknown';
         const rateLimit = checkRateLimit(`register-verify:${ip}`);
         if (!rateLimit.allowed) {
           set.status = 429;
@@ -209,13 +220,7 @@ export function createApp({ dbPath, jwtSecret }: { dbPath: string; jwtSecret: st
 
         // Seed default labels for the new user
         for (const label of DEFAULT_LABELS) {
-          labelQueries.create.run(
-            generateId(),
-            userId,
-            label.shortCode,
-            label.name,
-            label.color
-          );
+          labelQueries.create.run(generateId(), userId, label.shortCode, label.name, label.color);
         }
 
         // Initialize empty calendar
@@ -244,15 +249,16 @@ export function createApp({ dbPath, jwtSecret }: { dbPath: string; jwtSecret: st
           email: t.String({ format: 'email' }),
           code: t.String({ minLength: 6, maxLength: 6 }),
         }),
-      }
+      },
     )
     .post(
       '/api/auth/login',
       async ({ body, jwt, cookie: { auth }, set, request }) => {
         // Rate limiting
-        const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-          || request.headers.get('x-real-ip')
-          || 'unknown';
+        const ip =
+          request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+          request.headers.get('x-real-ip') ||
+          'unknown';
         const rateLimit = checkRateLimit(`login:${ip}`);
         if (!rateLimit.allowed) {
           set.status = 429;
@@ -299,7 +305,7 @@ export function createApp({ dbPath, jwtSecret }: { dbPath: string; jwtSecret: st
           email: t.String({ format: 'email' }),
           password: t.String(),
         }),
-      }
+      },
     )
     .post('/api/auth/logout', ({ cookie: { auth } }) => {
       auth.remove();
@@ -342,13 +348,7 @@ export function createApp({ dbPath, jwtSecret }: { dbPath: string; jwtSecret: st
         }
 
         const id = generateId();
-        labelQueries.create.run(
-          id,
-          user.id,
-          body.shortCode,
-          body.name,
-          body.color
-        );
+        labelQueries.create.run(id, user.id, body.shortCode, body.name, body.color);
 
         const response: LabelResponse = {
           id,
@@ -366,7 +366,7 @@ export function createApp({ dbPath, jwtSecret }: { dbPath: string; jwtSecret: st
           name: t.String({ minLength: 1 }),
           color: t.String({ pattern: '^#[0-9a-fA-F]{6}$' }),
         }),
-      }
+      },
     )
     .put(
       '/api/labels/:id',
@@ -408,7 +408,7 @@ export function createApp({ dbPath, jwtSecret }: { dbPath: string; jwtSecret: st
           name: t.Optional(t.String({ minLength: 1 })),
           color: t.Optional(t.String({ pattern: '^#[0-9a-fA-F]{6}$' })),
         }),
-      }
+      },
     )
     .delete(
       '/api/labels/:id',
@@ -433,7 +433,7 @@ export function createApp({ dbPath, jwtSecret }: { dbPath: string; jwtSecret: st
         params: t.Object({
           id: t.String(),
         }),
-      }
+      },
     )
     // Calendar routes
     .get('/api/calendar', ({ user, set }) => {
@@ -469,23 +469,38 @@ export function createApp({ dbPath, jwtSecret }: { dbPath: string; jwtSecret: st
       },
       {
         body: t.Record(t.String(), t.String()),
-      }
+      },
     )
     // Google Calendar routes
     .get('/api/google/auth', ({ user, set }) => {
-      if (!user) { set.status = 401; return { error: 'Unauthorized' }; }
+      if (!user) {
+        set.status = 401;
+        return { error: 'Unauthorized' };
+      }
 
       const state = generateOAuthState();
       oauthStateQueries.insert.run(state, user.id, Date.now() + 10 * 60 * 1000);
 
       const url = buildAuthUrl(state);
-      if (!url) { set.status = 500; return { error: 'Google OAuth not configured' }; }
+      if (!url) {
+        set.status = 500;
+        return { error: 'Google OAuth not configured' };
+      }
       return { url };
     })
     .get('/api/google/callback', async ({ query, user, set, redirect }) => {
-      if (!user) { set.status = 401; return { error: 'Unauthorized' }; }
-      if (!query.code) { set.status = 400; return { error: 'Missing authorization code' }; }
-      if (!query.state) { set.status = 400; return { error: 'Missing state parameter' }; }
+      if (!user) {
+        set.status = 401;
+        return { error: 'Unauthorized' };
+      }
+      if (!query.code) {
+        set.status = 400;
+        return { error: 'Missing authorization code' };
+      }
+      if (!query.state) {
+        set.status = 400;
+        return { error: 'Missing state parameter' };
+      }
 
       const storedState = oauthStateQueries.find.get(query.state);
       if (!storedState || storedState.user_id !== user.id || Date.now() > storedState.expires_at) {
@@ -495,22 +510,40 @@ export function createApp({ dbPath, jwtSecret }: { dbPath: string; jwtSecret: st
       oauthStateQueries.delete.run(query.state);
 
       const tokens = await exchangeCodeForTokens(query.code);
-      if (!tokens) { set.status = 400; return { error: 'Failed to exchange authorization code' }; }
-      if (!tokens.refresh_token) { set.status = 400; return { error: 'No refresh token received. Please try disconnecting and reconnecting.' }; }
+      if (!tokens) {
+        set.status = 400;
+        return { error: 'Failed to exchange authorization code' };
+      }
+      if (!tokens.refresh_token) {
+        set.status = 400;
+        return { error: 'No refresh token received. Please try disconnecting and reconnecting.' };
+      }
 
-      googleTokenQueries.upsert.run(user.id, tokens.access_token, tokens.refresh_token, Date.now() + tokens.expires_in * 1000, tokens.scope);
+      googleTokenQueries.upsert.run(
+        user.id,
+        tokens.access_token,
+        tokens.refresh_token,
+        Date.now() + tokens.expires_in * 1000,
+        tokens.scope,
+      );
 
       return redirect('/');
     })
     .get('/api/google/status', ({ user, set }) => {
-      if (!user) { set.status = 401; return { error: 'Unauthorized' }; }
+      if (!user) {
+        set.status = 401;
+        return { error: 'Unauthorized' };
+      }
 
       const record = googleTokenQueries.findByUserId.get(user.id);
       if (!record) return { connected: false, visible: false };
       return { connected: true, visible: record.visible === 1 };
     })
     .post('/api/google/disconnect', async ({ user, set }) => {
-      if (!user) { set.status = 401; return { error: 'Unauthorized' }; }
+      if (!user) {
+        set.status = 401;
+        return { error: 'Unauthorized' };
+      }
 
       const record = googleTokenQueries.findByUserId.get(user.id);
       if (record) {
@@ -521,20 +554,32 @@ export function createApp({ dbPath, jwtSecret }: { dbPath: string; jwtSecret: st
       return { success: true };
     })
     .post('/api/google/toggle', ({ user, set }) => {
-      if (!user) { set.status = 401; return { error: 'Unauthorized' }; }
+      if (!user) {
+        set.status = 401;
+        return { error: 'Unauthorized' };
+      }
 
       const record = googleTokenQueries.findByUserId.get(user.id);
-      if (!record) { set.status = 400; return { error: 'Google Calendar not connected' }; }
+      if (!record) {
+        set.status = 400;
+        return { error: 'Google Calendar not connected' };
+      }
 
       googleTokenQueries.toggleVisibility.run(user.id);
       const updated = googleTokenQueries.findByUserId.get(user.id);
       return { visible: updated!.visible === 1 };
     })
     .get('/api/google/events', async ({ query, user, set }) => {
-      if (!user) { set.status = 401; return { error: 'Unauthorized' }; }
+      if (!user) {
+        set.status = 401;
+        return { error: 'Unauthorized' };
+      }
 
       const record = googleTokenQueries.findByUserId.get(user.id);
-      if (!record) { set.status = 400; return { error: 'Google Calendar not connected' }; }
+      if (!record) {
+        set.status = 400;
+        return { error: 'Google Calendar not connected' };
+      }
       if (record.visible === 0) return [];
 
       let accessToken = record.access_token;
@@ -550,7 +595,10 @@ export function createApp({ dbPath, jwtSecret }: { dbPath: string; jwtSecret: st
       }
 
       const { timeMin, timeMax } = query;
-      if (!timeMin || !timeMax) { set.status = 400; return { error: 'timeMin and timeMax are required' }; }
+      if (!timeMin || !timeMax) {
+        set.status = 400;
+        return { error: 'timeMin and timeMax are required' };
+      }
 
       const minDate = new Date(timeMin);
       const maxDate = new Date(timeMax);
@@ -570,7 +618,10 @@ export function createApp({ dbPath, jwtSecret }: { dbPath: string; jwtSecret: st
       }
 
       const events = await fetchAllCalendarEvents(accessToken, minDate.toISOString(), maxDate.toISOString());
-      if (!events) { set.status = 502; return { error: 'Failed to fetch calendar events' }; }
+      if (!events) {
+        set.status = 502;
+        return { error: 'Failed to fetch calendar events' };
+      }
       return events;
     })
     // Serve static files from dist/ (built frontend)
@@ -584,7 +635,7 @@ export function createApp({ dbPath, jwtSecret }: { dbPath: string; jwtSecret: st
       const filePath = `dist/${params['*']}`;
       const file = Bun.file(filePath);
       // If file exists, serve it; otherwise serve index.html for SPA routing
-      return file.exists().then(exists => exists ? file : Bun.file('dist/index.html'));
+      return file.exists().then((exists) => (exists ? file : Bun.file('dist/index.html')));
     });
 
   return { app, getOTC };

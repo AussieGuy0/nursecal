@@ -15,5 +15,5 @@ createRoot(document.getElementById('root')!).render(
     <ToastProvider>
       <App />
     </ToastProvider>
-  </StrictMode>
+  </StrictMode>,
 );

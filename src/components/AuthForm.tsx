@@ -59,12 +59,8 @@ export function AuthForm({ onLogin, onRegisterInitiate, onRegisterVerify }: Auth
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
-        <h1 className="text-2xl font-bold text-center text-gray-800 mb-2">
-          NurseCal
-        </h1>
-        <p className="text-center text-gray-600 mb-6">
-          {getTitle()}
-        </p>
+        <h1 className="text-2xl font-bold text-center text-gray-800 mb-2">NurseCal</h1>
+        <p className="text-center text-gray-600 mb-6">{getTitle()}</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {!pendingVerification && (
@@ -123,11 +119,7 @@ export function AuthForm({ onLogin, onRegisterInitiate, onRegisterVerify }: Auth
             </div>
           )}
 
-          {error && (
-            <div className="text-red-600 text-sm bg-red-50 p-3 rounded-md">
-              {error}
-            </div>
-          )}
+          {error && <div className="text-red-600 text-sm bg-red-50 p-3 rounded-md">{error}</div>}
 
           <button
             type="submit"
@@ -149,9 +141,7 @@ export function AuthForm({ onLogin, onRegisterInitiate, onRegisterVerify }: Auth
             }}
             className="text-blue-600 hover:text-blue-800 text-sm"
           >
-            {isLogin
-              ? "Don't have an account? Sign up"
-              : 'Already have an account? Sign in'}
+            {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
           </button>
         </div>
       </div>
