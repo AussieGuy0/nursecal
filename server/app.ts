@@ -81,7 +81,7 @@ export function createApp({ dbPath, jwtSecret }: { dbPath: string; jwtSecret: st
       jwt({
         name: 'jwt',
         secret: jwtSecret,
-        exp: '7d',
+        exp: '30d',
       })
     )
     // Derive user from JWT cookie
@@ -233,7 +233,7 @@ export function createApp({ dbPath, jwtSecret }: { dbPath: string; jwtSecret: st
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',
-          maxAge: 60 * 60 * 24 * 7, // 7 days
+          maxAge: 60 * 60 * 24 * 30, // 30 days
           path: '/',
         });
 
@@ -288,7 +288,7 @@ export function createApp({ dbPath, jwtSecret }: { dbPath: string; jwtSecret: st
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',
-          maxAge: 60 * 60 * 24 * 7, // 7 days
+          maxAge: 60 * 60 * 24 * 30, // 30 days
           path: '/',
         });
 
