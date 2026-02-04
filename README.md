@@ -40,9 +40,18 @@ Then open http://localhost:5173
 | `JWT_SECRET`           | Yes      | Secret key for signing JWT auth tokens. Can generate with `openssl rand -base64 32`. |
 | `NODE_ENV`             | No       | Set to `production` in prod, otherwise can leave.                                    |
 | `PORT`                 | No       | Server port. Defaults to `3123`.                                                     |
+| `SMTP_HOST`            | No       | SMTP server hostname for sending emails (e.g. registration verification codes).      |
+| `SMTP_PORT`            | No       | SMTP server port (e.g. `587` for TLS, `465` for SSL).                                |
+| `SMTP_USERNAME`        | No       | SMTP authentication username.                                                        |
+| `SMTP_PASSWORD`        | No       | SMTP authentication password.                                                        |
+| `SMTP_SECURE`          | No       | Set to `true` for SSL. Defaults to `true` when port is `465`.                        |
 | `GOOGLE_CLIENT_ID`     | No       | OAuth 2.0 client ID for Google Calendar integration.                                 |
 | `GOOGLE_CLIENT_SECRET` | No       | OAuth 2.0 client secret.                                                             |
 | `GOOGLE_REDIRECT_URI`  | No       | OAuth callback URL, e.g. `https://yourdomain.com/api/google/callback`.               |
+
+### Email (SMTP) setup
+
+Email sending is optional. If `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, and `SMTP_PASSWORD` are all set, the server sends real emails via SMTP (e.g. for registration verification codes). Otherwise, it falls back to logging emails to the console.
 
 ### Google Calendar setup
 

@@ -44,6 +44,7 @@ bun test                 # Backend tests (uses temp SQLite DB)
   - `index.ts` - Entrypoint: reads env vars, calls `createApp()`, starts server
   - `db.ts` - `createDB(dbPath)` factory: SQLite schema and prepared queries
   - `otc.ts` - `createOTCService(db)` factory: one-time code operations
+  - `email.ts` - `EmailService` interface + factories: `createSmtpEmailService()`, `createLoggingEmailService()`, `createInMemoryEmailService()`
   - `types.ts` - Backend TypeScript interfaces
 - `test/` - Backend tests
   - `index.test.ts` - API tests using Elysia `.handle()`
@@ -52,7 +53,8 @@ bun test                 # Backend tests (uses temp SQLite DB)
 
 - **State Management:** Custom React hooks (no Redux/Zustand). Each hook manages its own API calls and local state.
 - **Sync Strategy:** `useShifts` uses 500ms debounced sync with optimistic UI updates.
-- **Auth:** JWT stored in HTTP-only cookies, 7-day expiration. Rate limiting on auth endpoints.
+- **Auth:** JWT stored in HTTP-only cookies, 30-day expiration. Rate limiting on auth endpoints.
+- **Email:** `EmailService` abstraction with SMTP (nodemailer), logging (console), and in-memory (testing) implementations. `createApp()` requires an `emailService`. Registration OTC is delivered via this service.
 - **Database:** SQLite with prepared statements. Shifts stored as JSON.
 - **PWA:** Service worker (workbox via vite-plugin-pwa) caches static assets and uses a navigation fallback to `index.html` for offline SPA support. `/api/*` routes are excluded from the navigation fallback (`navigateFallbackDenylist` in `vite.config.ts`) so that server-initiated redirects (e.g., OAuth callbacks) reach the backend instead of being intercepted by the service worker. When debugging issues with routes returning unexpected HTML, check whether the service worker is interfering.
 
@@ -70,6 +72,8 @@ bun test                 # Backend tests (uses temp SQLite DB)
 
 - `JWT_SECRET` - Required for JWT signing
 - `NODE_ENV` - Set to "production" for secure cookies
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD` - Optional; if all set, emails sent via SMTP. Otherwise logs to console.
+- `SMTP_SECURE` - Optional; defaults to `true` when port is 465
 
 ## Deployment
 

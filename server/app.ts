@@ -13,6 +13,7 @@ import {
   revokeToken,
   fetchAllCalendarEvents,
 } from './google';
+import type { EmailService } from './email';
 
 // Rate limiting configuration
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
@@ -30,7 +31,15 @@ async function verifyPassword(password: string, hash: string): Promise<boolean> 
   return await Bun.password.verify(password, hash);
 }
 
-export function createApp({ dbPath, jwtSecret }: { dbPath: string; jwtSecret: string }) {
+export function createApp({
+  dbPath,
+  jwtSecret,
+  emailService,
+}: {
+  dbPath: string;
+  jwtSecret: string;
+  emailService: EmailService;
+}) {
   const { userQueries, labelQueries, calendarQueries, oauthStateQueries, googleTokenQueries, db } = createDB(dbPath);
   const { storeOTC, getOTC, deleteOTC } = createOTCService(db);
 
@@ -148,8 +157,12 @@ export function createApp({ dbPath, jwtSecret }: { dbPath: string; jwtSecret: st
         // Store OTC in database
         storeOTC(email, code, passwordHash);
 
-        // Log OTC with masked email (for development - in production this would send an email)
-        console.log(`[OTC] Registration code for ${maskEmail(email)}: ${code}`);
+        await emailService.sendEmail(
+          'NurseCal <noreply@nursecal.com>',
+          email,
+          'Your NurseCal verification code',
+          `<p>Your verification code is: <strong>${code}</strong></p><p>This code expires in 10 minutes.</p>`,
+        );
 
         return { success: true, message: 'Verification code sent' };
       },
