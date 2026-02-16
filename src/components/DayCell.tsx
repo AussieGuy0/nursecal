@@ -7,6 +7,7 @@ interface DayCellProps {
   label?: Label;
   isToday: boolean;
   onTap: (dateKey: string) => void;
+  readOnly?: boolean;
   googleEvents?: GoogleCalendarEvent[];
   onGoogleEventTap?: (event: GoogleCalendarEvent) => void;
 }
@@ -18,6 +19,7 @@ export function DayCell({
   label,
   isToday,
   onTap,
+  readOnly,
   googleEvents,
   onGoogleEventTap,
 }: DayCellProps) {
@@ -26,7 +28,7 @@ export function DayCell({
 
   return (
     <button
-      onClick={() => onTap(dateKey)}
+      onClick={() => !readOnly && onTap(dateKey)}
       className={`
         relative flex flex-col items-center justify-start p-1 min-h-[3.5rem]
         border-b border-r border-gray-200 transition-colors
