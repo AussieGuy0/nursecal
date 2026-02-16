@@ -4,7 +4,6 @@ import { Calendar } from './components/Calendar';
 import { CalendarSwitcher } from './components/CalendarSwitcher';
 import { LabelPicker } from './components/LabelPicker';
 import { SettingsManager } from './components/SettingsManager';
-import { ShareManager } from './components/ShareManager';
 import { AuthForm } from './components/AuthForm';
 import { GoogleEventDetails } from './components/GoogleEventDetails';
 import { GoogleCalendarEvent } from './types';
@@ -22,7 +21,6 @@ export default function App() {
   const [month, setMonth] = useState(today.getMonth());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
-  const [showShare, setShowShare] = useState(false);
   const [viewingOwnerEmail, setViewingOwnerEmail] = useState<string | null>(null);
   const [selectedGoogleEvent, setSelectedGoogleEvent] = useState<GoogleCalendarEvent | null>(null);
 
@@ -119,7 +117,6 @@ export default function App() {
         onNextMonth={handleNextMonth}
         onToday={handleToday}
         onOpenSettings={() => setShowSettings(true)}
-        onOpenShare={isViewingShared ? undefined : () => setShowShare(true)}
         email={email}
         onLogout={logout}
       />
@@ -166,16 +163,15 @@ export default function App() {
           onUpdate={updateLabel}
           onDelete={deleteLabel}
           onClose={() => setShowSettings(false)}
+          shares={shares}
+          onShareAdd={addShare}
+          onShareRemove={removeShare}
           googleConnected={google.connected}
           googleVisible={google.visible}
           onGoogleConnect={google.connect}
           onGoogleDisconnect={google.disconnect}
           onToggleGoogleVisibility={google.toggleVisibility}
         />
-      )}
-
-      {showShare && (
-        <ShareManager shares={shares} onAdd={addShare} onRemove={removeShare} onClose={() => setShowShare(false)} />
       )}
 
       {selectedGoogleEvent && (

@@ -343,7 +343,8 @@ describe('Sharing', () => {
     expect(res2.status).toBe(401);
   });
 
-  test('POST /api/shares creates a share', async () => {
+  test('POST /api/shares creates a share and sends invite email', async () => {
+    const sentBefore = emailService.sent.length;
     const res = await app.handle(
       new Request(`${BASE}/api/shares`, {
         method: 'POST',
@@ -354,6 +355,13 @@ describe('Sharing', () => {
     expect(res.status).toBe(201);
     const data = await res.json();
     expect(data.success).toBe(true);
+
+    // Wait for fire-and-forget email
+    await new Promise((r) => setTimeout(r, 50));
+    const sent = emailService.sent.slice(sentBefore);
+    expect(sent).toHaveLength(1);
+    expect(sent[0].to).toBe('viewer@test.com');
+    expect(sent[0].subject).toContain('shared their NurseCal calendar');
   });
 
   test('POST /api/shares rejects sharing with yourself', async () => {

@@ -536,6 +536,16 @@ export function createApp({
           if (!existing) {
             const id = generateId();
             shareQueries.create.run(id, user.id, targetUser.id);
+
+            // Send invite email (fire-and-forget, don't fail the share)
+            emailService
+              .sendEmail(
+                `NurseCal <noreply@${emailDomain}>`,
+                targetUser.email,
+                `${user.email} shared their NurseCal calendar with you`,
+                `<p><strong>${user.email}</strong> has shared their calendar with you on NurseCal.</p><p>Log in to view their shifts.</p>`,
+              )
+              .catch((err) => console.error('[Email] Failed to send share invite:', err));
           }
         }
 
