@@ -9,6 +9,7 @@ interface CalendarProps {
   shifts: { [date: string]: string };
   labels: Label[];
   onDayTap: (dateKey: string) => void;
+  readOnly?: boolean;
   onSwipeLeft?: () => void;
   onSwipeRight?: () => void;
   googleEventsByDate?: Record<string, GoogleCalendarEvent[]>;
@@ -35,6 +36,7 @@ export function Calendar({
   shifts,
   labels,
   onDayTap,
+  readOnly,
   onSwipeLeft,
   onSwipeRight,
   googleEventsByDate,
@@ -128,6 +130,7 @@ export function Calendar({
               isToday={dateKey === todayKey}
               label={shifts[dateKey] ? getLabelById(shifts[dateKey]) : undefined}
               onTap={onDayTap}
+              readOnly={readOnly}
               googleEvents={googleEventsByDate?.[dateKey]}
               onGoogleEventTap={onGoogleEventTap}
             />

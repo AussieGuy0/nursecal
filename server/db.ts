@@ -68,6 +68,34 @@ export function createDB(dbPath: string) {
     deleteExpired: db.prepare('DELETE FROM oauth_states WHERE expires_at < ?'),
   };
 
+  const shareQueries = {
+    findByOwnerId: db.prepare<
+      { id: string; owner_id: number; shared_with_id: number; created_at: string; email: string },
+      [number]
+    >('SELECT cs.*, u.email FROM calendar_shares cs JOIN users u ON u.id = cs.shared_with_id WHERE cs.owner_id = ?'),
+
+    findSharedWithUser: db.prepare<
+      { id: string; owner_id: number; shared_with_id: number; created_at: string; email: string },
+      [number]
+    >('SELECT cs.*, u.email FROM calendar_shares cs JOIN users u ON u.id = cs.owner_id WHERE cs.shared_with_id = ?'),
+
+    findById: db.prepare<{ id: string; owner_id: number; shared_with_id: number; created_at: string }, [string]>(
+      'SELECT * FROM calendar_shares WHERE id = ?',
+    ),
+
+    create: db.prepare('INSERT INTO calendar_shares (id, owner_id, shared_with_id) VALUES (?, ?, ?)'),
+
+    delete: db.prepare('DELETE FROM calendar_shares WHERE id = ? AND owner_id = ?'),
+
+    hasAccess: db.prepare<{ id: string }, [number, number]>(
+      'SELECT id FROM calendar_shares WHERE owner_id = ? AND shared_with_id = ?',
+    ),
+
+    countByOwnerId: db.prepare<{ count: number }, [number]>(
+      'SELECT COUNT(*) as count FROM calendar_shares WHERE owner_id = ?',
+    ),
+  };
+
   const googleTokenQueries = {
     findByUserId: db.prepare<
       {
@@ -100,7 +128,7 @@ export function createDB(dbPath: string) {
     delete: db.prepare('DELETE FROM google_tokens WHERE user_id = ?'),
   };
 
-  return { db, userQueries, labelQueries, calendarQueries, oauthStateQueries, googleTokenQueries };
+  return { db, userQueries, labelQueries, calendarQueries, shareQueries, oauthStateQueries, googleTokenQueries };
 }
 
 // Helper to generate UUIDs for labels

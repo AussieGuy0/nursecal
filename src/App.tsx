@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Header } from './components/Header';
 import { Calendar } from './components/Calendar';
+import { CalendarSwitcher } from './components/CalendarSwitcher';
 import { LabelPicker } from './components/LabelPicker';
 import { SettingsManager } from './components/SettingsManager';
 import { AuthForm } from './components/AuthForm';
@@ -9,6 +10,8 @@ import { GoogleCalendarEvent } from './types';
 import { useAuth } from './hooks/useAuth';
 import { useLabels } from './hooks/useLabels';
 import { useShifts } from './hooks/useShifts';
+import { useShares } from './hooks/useShares';
+import { useSharedCalendar } from './hooks/useSharedCalendar';
 import { useGoogleCalendar } from './hooks/useGoogleCalendar';
 import { useToast } from './context/ToastContext';
 
@@ -18,6 +21,7 @@ export default function App() {
   const [month, setMonth] = useState(today.getMonth());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [viewingOwnerEmail, setViewingOwnerEmail] = useState<string | null>(null);
   const [selectedGoogleEvent, setSelectedGoogleEvent] = useState<GoogleCalendarEvent | null>(null);
 
   const { addToast } = useToast();
@@ -32,6 +36,8 @@ export default function App() {
   const { authenticated, loading: authLoading, login, registerInitiate, registerVerify, logout, email } = useAuth();
   const { labels, addLabel, updateLabel, deleteLabel, loading: labelsLoading } = useLabels(authenticated);
   const { shifts, setShift, clearShift, getShift, loading: shiftsLoading } = useShifts(authenticated, handleSyncError);
+  const { shares, sharedWithMe, addShare, removeShare } = useShares(authenticated);
+  const sharedCalendar = useSharedCalendar(viewingOwnerEmail);
   const google = useGoogleCalendar(authenticated, year, month);
 
   // Handle OAuth redirect - refetch status when returning from Google
@@ -97,6 +103,10 @@ export default function App() {
 
   // Show loading state while fetching data
   const isLoading = labelsLoading || shiftsLoading;
+  const isViewingShared = viewingOwnerEmail !== null;
+
+  const displayShifts = isViewingShared && sharedCalendar.data ? sharedCalendar.data.shifts : shifts;
+  const displayLabels = isViewingShared && sharedCalendar.data ? sharedCalendar.data.labels : labels;
 
   return (
     <div className="h-screen flex flex-col">
@@ -111,7 +121,13 @@ export default function App() {
         onLogout={logout}
       />
 
-      {isLoading ? (
+      <CalendarSwitcher
+        sharedCalendars={sharedWithMe}
+        selectedEmail={viewingOwnerEmail}
+        onSelect={setViewingOwnerEmail}
+      />
+
+      {isLoading || sharedCalendar.loading ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-gray-600">Loading your calendar...</div>
         </div>
@@ -119,17 +135,18 @@ export default function App() {
         <Calendar
           year={year}
           month={month}
-          shifts={shifts}
-          labels={labels}
+          shifts={displayShifts}
+          labels={displayLabels}
           onDayTap={handleDayTap}
+          readOnly={isViewingShared}
           onSwipeLeft={handleNextMonth}
           onSwipeRight={handlePrevMonth}
-          googleEventsByDate={google.eventsByDate}
+          googleEventsByDate={isViewingShared ? undefined : google.eventsByDate}
           onGoogleEventTap={setSelectedGoogleEvent}
         />
       )}
 
-      {selectedDate && (
+      {selectedDate && !isViewingShared && (
         <LabelPicker
           labels={labels}
           currentLabelId={getShift(selectedDate)}
@@ -146,6 +163,9 @@ export default function App() {
           onUpdate={updateLabel}
           onDelete={deleteLabel}
           onClose={() => setShowSettings(false)}
+          shares={shares}
+          onShareAdd={addShare}
+          onShareRemove={removeShare}
           googleConnected={google.connected}
           googleVisible={google.visible}
           onGoogleConnect={google.connect}

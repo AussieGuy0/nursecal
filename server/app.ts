@@ -18,6 +18,7 @@ import type { EmailService } from './email';
 // Rate limiting configuration
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const RATE_LIMIT_MAX_ATTEMPTS = 5;
+const MAX_SHARES = 50;
 
 // Password hashing using Bun's native crypto
 async function hashPassword(password: string): Promise<string> {
@@ -42,7 +43,8 @@ export function createApp({
   emailService: EmailService;
   emailDomain?: string;
 }) {
-  const { userQueries, labelQueries, calendarQueries, oauthStateQueries, googleTokenQueries, db } = createDB(dbPath);
+  const { userQueries, labelQueries, calendarQueries, shareQueries, oauthStateQueries, googleTokenQueries, db } =
+    createDB(dbPath);
   const { storeOTC, getOTC, deleteOTC } = createOTCService(db);
 
   // In-memory rate limit store: IP -> { count, resetTime }
@@ -491,6 +493,152 @@ export function createApp({
       },
       {
         body: t.Record(t.String(), t.String()),
+      },
+    )
+    // Sharing routes
+    .post(
+      '/api/shares',
+      ({ user, body, set, request }) => {
+        if (!user) {
+          set.status = 401;
+          return { error: 'Unauthorized' };
+        }
+
+        // Self-share check by email (doesn't reveal target user existence)
+        if (body.email.toLowerCase() === user.email.toLowerCase()) {
+          set.status = 400;
+          return { error: 'You cannot share with yourself' };
+        }
+
+        // Rate limiting
+        const ip =
+          request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+          request.headers.get('x-real-ip') ||
+          'unknown';
+        const rateLimit = checkRateLimit(`share:${ip}`);
+        if (!rateLimit.allowed) {
+          set.status = 429;
+          set.headers['Retry-After'] = String(rateLimit.retryAfterSeconds);
+          return { error: 'Too many attempts. Please try again later.' };
+        }
+
+        // Enforce share limit
+        const shareCount = shareQueries.countByOwnerId.get(user.id);
+        if (shareCount && shareCount.count >= MAX_SHARES) {
+          set.status = 400;
+          return { error: 'Maximum number of shares reached' };
+        }
+
+        // Uniform response to prevent email enumeration
+        const targetUser = userQueries.findByEmail.get(body.email);
+        if (targetUser) {
+          const existing = shareQueries.hasAccess.get(user.id, targetUser.id);
+          if (!existing) {
+            const id = generateId();
+            shareQueries.create.run(id, user.id, targetUser.id);
+
+            // Send invite email (fire-and-forget, don't fail the share)
+            emailService
+              .sendEmail(
+                `NurseCal <noreply@${emailDomain}>`,
+                targetUser.email,
+                `${user.email} shared their NurseCal calendar with you`,
+                `<p><strong>${user.email}</strong> has shared their calendar with you on NurseCal.</p><p>Log in to view their shifts.</p>`,
+              )
+              .catch((err) => console.error('[Email] Failed to send share invite:', err));
+          }
+        }
+
+        set.status = 201;
+        return { success: true };
+      },
+      {
+        body: t.Object({
+          email: t.String({ format: 'email' }),
+        }),
+      },
+    )
+    .get('/api/shares', ({ user, set }) => {
+      if (!user) {
+        set.status = 401;
+        return { error: 'Unauthorized' };
+      }
+
+      const shares = shareQueries.findByOwnerId.all(user.id);
+      return shares.map((s) => ({ id: s.id, email: s.email }));
+    })
+    .delete(
+      '/api/shares/:id',
+      ({ user, params, set }) => {
+        if (!user) {
+          set.status = 401;
+          return { error: 'Unauthorized' };
+        }
+
+        const share = shareQueries.findById.get(params.id);
+        if (!share || share.owner_id !== user.id) {
+          set.status = 404;
+          return { error: 'Share not found' };
+        }
+
+        shareQueries.delete.run(params.id, user.id);
+        return { success: true };
+      },
+      {
+        params: t.Object({
+          id: t.String(),
+        }),
+      },
+    )
+    .get('/api/shared-calendars', ({ user, set }) => {
+      if (!user) {
+        set.status = 401;
+        return { error: 'Unauthorized' };
+      }
+
+      const shared = shareQueries.findSharedWithUser.all(user.id);
+      return shared.map((s) => ({ email: s.email }));
+    })
+    .get(
+      '/api/shared-calendars/:ownerEmail',
+      ({ user, params, set }) => {
+        if (!user) {
+          set.status = 401;
+          return { error: 'Unauthorized' };
+        }
+
+        const ownerEmail = decodeURIComponent(params.ownerEmail);
+        const owner = userQueries.findByEmail.get(ownerEmail);
+
+        // Uniform 404 for both "no such user" and "no access"
+        if (!owner) {
+          set.status = 404;
+          return { error: 'Calendar not found' };
+        }
+
+        const access = shareQueries.hasAccess.get(owner.id, user.id);
+        if (!access) {
+          set.status = 404;
+          return { error: 'Calendar not found' };
+        }
+
+        const calendar = calendarQueries.findByUserId.get(owner.id);
+        const labels = labelQueries.findByUserId.all(owner.id);
+
+        const shifts: ShiftMap = calendar ? JSON.parse(calendar.shifts) : {};
+        const labelResponse: LabelResponse[] = labels.map((l) => ({
+          id: l.id,
+          shortCode: l.short_code,
+          name: l.name,
+          color: l.color,
+        }));
+
+        return { shifts, labels: labelResponse };
+      },
+      {
+        params: t.Object({
+          ownerEmail: t.String(),
+        }),
       },
     )
     // Google Calendar routes

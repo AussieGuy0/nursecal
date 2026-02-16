@@ -22,13 +22,18 @@ afterAll(() => {
   } catch {}
 });
 
+let registerCounter = 0;
+
 /** Register + verify a user, returning the auth cookie header value. */
 async function registerUser(email: string, password: string): Promise<string> {
+  // Use a unique IP per registration to avoid rate limiting
+  const ip = `10.0.0.${++registerCounter}`;
+
   // Initiate registration
   const initRes = await app.handle(
     new Request(`${BASE}/api/auth/register/initiate`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': ip },
       body: JSON.stringify({ email, password }),
     }),
   );
@@ -42,7 +47,7 @@ async function registerUser(email: string, password: string): Promise<string> {
   const verifyRes = await app.handle(
     new Request(`${BASE}/api/auth/register/verify`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': ip },
       body: JSON.stringify({ email, code: otc!.code }),
     }),
   );
@@ -307,5 +312,193 @@ describe('Calendar', () => {
     );
     const data = await res.json();
     expect(data).toEqual(newShifts);
+  });
+});
+
+// ─── Sharing ──────────────────────────────────────────────────────────────────
+
+describe('Sharing', () => {
+  let cookieA: string;
+  let cookieB: string;
+
+  beforeAll(async () => {
+    cookieA = await registerUser('owner@test.com', 'password123');
+    cookieB = await registerUser('viewer@test.com', 'password123');
+
+    // Owner sets up some shifts
+    await app.handle(
+      new Request(`${BASE}/api/calendar`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Cookie: cookieA },
+        body: JSON.stringify({ '2025-03-01': 'label1' }),
+      }),
+    );
+  });
+
+  test('unauthenticated requests return 401', async () => {
+    const res1 = await app.handle(new Request(`${BASE}/api/shares`));
+    expect(res1.status).toBe(401);
+
+    const res2 = await app.handle(new Request(`${BASE}/api/shared-calendars`));
+    expect(res2.status).toBe(401);
+  });
+
+  test('POST /api/shares creates a share and sends invite email', async () => {
+    const sentBefore = emailService.sent.length;
+    const res = await app.handle(
+      new Request(`${BASE}/api/shares`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: cookieA },
+        body: JSON.stringify({ email: 'viewer@test.com' }),
+      }),
+    );
+    expect(res.status).toBe(201);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+
+    // Wait for fire-and-forget email
+    await new Promise((r) => setTimeout(r, 50));
+    const sent = emailService.sent.slice(sentBefore);
+    expect(sent).toHaveLength(1);
+    expect(sent[0].to).toBe('viewer@test.com');
+    expect(sent[0].subject).toContain('shared their NurseCal calendar');
+  });
+
+  test('POST /api/shares rejects sharing with yourself', async () => {
+    const res = await app.handle(
+      new Request(`${BASE}/api/shares`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: cookieA },
+        body: JSON.stringify({ email: 'owner@test.com' }),
+      }),
+    );
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toContain('yourself');
+  });
+
+  test('POST /api/shares returns 201 for duplicate share (prevents enumeration)', async () => {
+    const res = await app.handle(
+      new Request(`${BASE}/api/shares`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: cookieA },
+        body: JSON.stringify({ email: 'viewer@test.com' }),
+      }),
+    );
+    expect(res.status).toBe(201);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+  });
+
+  test('POST /api/shares returns 201 for unknown email (prevents enumeration)', async () => {
+    const res = await app.handle(
+      new Request(`${BASE}/api/shares`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Cookie: cookieA },
+        body: JSON.stringify({ email: 'nobody@test.com' }),
+      }),
+    );
+    expect(res.status).toBe(201);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+  });
+
+  test('GET /api/shares lists shares for the owner', async () => {
+    const res = await app.handle(
+      new Request(`${BASE}/api/shares`, {
+        headers: { Cookie: cookieA },
+      }),
+    );
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data).toBeArrayOfSize(1);
+    expect(data[0].email).toBe('viewer@test.com');
+  });
+
+  test('GET /api/shared-calendars lists calendars shared with user', async () => {
+    const res = await app.handle(
+      new Request(`${BASE}/api/shared-calendars`, {
+        headers: { Cookie: cookieB },
+      }),
+    );
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data).toBeArrayOfSize(1);
+    expect(data[0].email).toBe('owner@test.com');
+    expect(data[0].ownerId).toBeUndefined();
+  });
+
+  test('GET /api/shared-calendars/:ownerEmail returns shifts and labels', async () => {
+    const res = await app.handle(
+      new Request(`${BASE}/api/shared-calendars/${encodeURIComponent('owner@test.com')}`, {
+        headers: { Cookie: cookieB },
+      }),
+    );
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.shifts).toEqual({ '2025-03-01': 'label1' });
+    expect(data.labels).toBeArray();
+    expect(data.labels.length).toBeGreaterThan(0);
+    expect(data.labels[0].shortCode).toBeDefined();
+  });
+
+  test('GET /api/shared-calendars/:ownerEmail returns 404 without access', async () => {
+    // cookieA trying to view owner@test.com's calendar via shared endpoint (no self-share)
+    const res = await app.handle(
+      new Request(`${BASE}/api/shared-calendars/${encodeURIComponent('owner@test.com')}`, {
+        headers: { Cookie: cookieA },
+      }),
+    );
+    expect(res.status).toBe(404);
+  });
+
+  test('GET /api/shared-calendars/:ownerEmail returns 404 for non-existent user', async () => {
+    const res = await app.handle(
+      new Request(`${BASE}/api/shared-calendars/${encodeURIComponent('nonexistent@test.com')}`, {
+        headers: { Cookie: cookieB },
+      }),
+    );
+    expect(res.status).toBe(404);
+  });
+
+  test('DELETE /api/shares/:id revokes a share', async () => {
+    // Get share ID from the list
+    const listRes = await app.handle(
+      new Request(`${BASE}/api/shares`, {
+        headers: { Cookie: cookieA },
+      }),
+    );
+    const shares = await listRes.json();
+    const shareId = shares[0].id;
+
+    const res = await app.handle(
+      new Request(`${BASE}/api/shares/${shareId}`, {
+        method: 'DELETE',
+        headers: { Cookie: cookieA },
+      }),
+    );
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+  });
+
+  test('shared calendar is no longer accessible after revocation', async () => {
+    const listRes = await app.handle(
+      new Request(`${BASE}/api/shared-calendars`, {
+        headers: { Cookie: cookieB },
+      }),
+    );
+    const data = await listRes.json();
+    expect(data).toBeArrayOfSize(0);
+  });
+
+  test('DELETE /api/shares/:id returns 404 for non-existent share', async () => {
+    const res = await app.handle(
+      new Request(`${BASE}/api/shares/nonexistent`, {
+        method: 'DELETE',
+        headers: { Cookie: cookieA },
+      }),
+    );
+    expect(res.status).toBe(404);
   });
 });

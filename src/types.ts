@@ -19,6 +19,20 @@ export interface ActionResult {
   error?: string;
 }
 
+export interface Share {
+  id: string;
+  email: string;
+}
+
+export interface SharedCalendar {
+  email: string;
+}
+
+export interface SharedCalendarData {
+  shifts: ShiftMap;
+  labels: Label[];
+}
+
 export interface GoogleCalendarEvent {
   id: string;
   summary: string;
