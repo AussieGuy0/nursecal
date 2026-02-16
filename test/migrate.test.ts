@@ -25,7 +25,9 @@ afterEach(() => {
 
 function getTables(db: Database): string[] {
   return db
-    .prepare<{ name: string }, []>("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+    .prepare<{ name: string }, []>(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+    )
     .all()
     .map((r) => r.name);
 }
@@ -47,9 +49,7 @@ describe('migrate', () => {
   test('records applied migrations', () => {
     migrate(db);
 
-    const migrations = db
-      .prepare<{ name: string; applied_at: string }, []>('SELECT * FROM _migrations')
-      .all();
+    const migrations = db.prepare<{ name: string; applied_at: string }, []>('SELECT * FROM _migrations').all();
 
     expect(migrations.length).toBeGreaterThanOrEqual(1);
     expect(migrations[0].name).toBe('001_initial.sql');
@@ -60,9 +60,7 @@ describe('migrate', () => {
     migrate(db);
     migrate(db);
 
-    const migrations = db
-      .prepare<{ name: string }, []>('SELECT * FROM _migrations')
-      .all();
+    const migrations = db.prepare<{ name: string }, []>('SELECT * FROM _migrations').all();
 
     // Should still only have each migration once
     const names = migrations.map((m) => m.name);
@@ -82,7 +80,7 @@ describe('migrate', () => {
     db.run("INSERT INTO labels (id, user_id, short_code, name, color) VALUES ('l1', 1, 'E', 'Early', '#ff0000')");
 
     // Insert calendar data
-    db.run("INSERT INTO calendars (user_id, shifts) VALUES (1, '{\"2025-01-01\": \"E\"}')");
+    db.run('INSERT INTO calendars (user_id, shifts) VALUES (1, \'{"2025-01-01": "E"}\')');
 
     // Verify foreign key enforcement
     expect(() => {
@@ -94,9 +92,10 @@ describe('migrate', () => {
     migrate(db);
 
     const rows = db
-      .prepare<{ sql: string }, []>(
-        "SELECT sql FROM sqlite_master WHERE type IN ('table', 'index') AND name NOT LIKE 'sqlite_%' ORDER BY type, name",
-      )
+      .prepare<
+        { sql: string },
+        []
+      >("SELECT sql FROM sqlite_master WHERE type IN ('table', 'index') AND name NOT LIKE 'sqlite_%' ORDER BY type, name")
       .all();
 
     const generated = rows.map((r) => r.sql + ';').join('\n\n') + '\n';
