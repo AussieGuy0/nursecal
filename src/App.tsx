@@ -124,7 +124,11 @@ export default function App() {
         onLogout={logout}
       />
 
-      <CalendarSwitcher sharedCalendars={sharedWithMe} selectedEmail={viewingOwnerEmail} onSelect={setViewingOwnerEmail} />
+      <CalendarSwitcher
+        sharedCalendars={sharedWithMe}
+        selectedEmail={viewingOwnerEmail}
+        onSelect={setViewingOwnerEmail}
+      />
 
       {isLoading || sharedCalendar.loading ? (
         <div className="flex-1 flex items-center justify-center">
