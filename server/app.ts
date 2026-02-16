@@ -35,12 +35,12 @@ export function createApp({
   dbPath,
   jwtSecret,
   emailService,
-  domain = 'localhost',
+  emailDomain = 'localhost',
 }: {
   dbPath: string;
   jwtSecret: string;
   emailService: EmailService;
-  domain?: string;
+  emailDomain?: string;
 }) {
   const { userQueries, labelQueries, calendarQueries, oauthStateQueries, googleTokenQueries, db } = createDB(dbPath);
   const { storeOTC, getOTC, deleteOTC } = createOTCService(db);
@@ -161,7 +161,7 @@ export function createApp({
 
         try {
           await emailService.sendEmail(
-            `NurseCal <noreply@${domain}>`,
+            `NurseCal <noreply@${emailDomain}>`,
             email,
             'Your NurseCal verification code',
             `<p>Your verification code is: <strong>${code}</strong></p><p>This code expires in 10 minutes.</p>`,

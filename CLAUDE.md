@@ -72,7 +72,7 @@ bun test                 # Backend tests (uses temp SQLite DB)
 
 - `JWT_SECRET` - Required for JWT signing
 - `NODE_ENV` - Set to "production" for secure cookies
-- `DOMAIN` - Optional; domain for outbound email `from` address. Defaults to `localhost`.
+- `EMAIL_DOMAIN` - Optional; domain for outbound email `from` address. Defaults to `localhost`.
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD` - Optional; if all set, emails sent via SMTP. Otherwise logs to console.
 
 ## Deployment

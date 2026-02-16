@@ -40,7 +40,7 @@ Then open http://localhost:5173
 | `JWT_SECRET`           | Yes      | Secret key for signing JWT auth tokens. Can generate with `openssl rand -base64 32`. |
 | `NODE_ENV`             | No       | Set to `production` in prod, otherwise can leave.                                    |
 | `PORT`                 | No       | Server port. Defaults to `3123`.                                                     |
-| `DOMAIN`               | No       | Domain for outbound email `from` address. Defaults to `localhost`.                   |
+| `EMAIL_DOMAIN`         | No       | Domain for outbound email `from` address. Defaults to `localhost`.                   |
 | `SMTP_HOST`            | No       | SMTP server hostname for sending emails (e.g. registration verification codes).      |
 | `SMTP_PORT`            | No       | SMTP server port (e.g. `587` for TLS, `465` for SSL).                                |
 | `SMTP_USERNAME`        | No       | SMTP authentication username.                                                        |
