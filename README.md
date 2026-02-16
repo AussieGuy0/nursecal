@@ -33,6 +33,15 @@ bun run dev:frontend
 
 Then open http://localhost:5173
 
+## Build and Run
+
+```bash
+bun run build
+bun run start
+```
+
+Then open http://localhost:3123
+
 ## Environment Variables
 
 | Variable               | Required | Description                                                                          |
@@ -66,13 +75,38 @@ The Google Calendar integration is optional. To enable it:
 
 The app requests `calendar.readonly` scope only.
 
-## Production
+## Self-Hosting with Docker Compose
 
-Build and run:
+1. Clone the repo and create a `.env` file:
 
 ```bash
-bun run build
-bun run start
+git clone https://github.com/AussieGuy0/nursecal.git
+cd nursecal
+cp .env.example .env  # or create manually
 ```
 
-Then open http://localhost:3123
+2. Set at minimum `JWT_SECRET` in your `.env`:
+
+```env
+JWT_SECRET=your-secret-here  # generate with: openssl rand -base64 32
+```
+
+See [Environment Variables](#environment-variables) above for optional SMTP and Google Calendar settings — these can be added to `.env` as needed.
+
+3. Start the app:
+
+```bash
+docker compose up -d
+```
+
+The app will be available at http://localhost:3123. SQLite data is persisted in a Docker volume.
+
+To rebuild after pulling updates:
+
+```bash
+docker compose up -d --build
+```
+
+### Reverse proxy
+
+For production, put a reverse proxy (Caddy, nginx, Traefik, etc.) in front to handle HTTPS. Set `NODE_ENV=production` in your `.env` so auth cookies are set with `Secure`.
