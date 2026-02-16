@@ -42,7 +42,10 @@ bun test                 # Backend tests (uses temp SQLite DB)
 - `server/` - Elysia backend
   - `app.ts` - `createApp()` factory: builds the Elysia app with all routes
   - `index.ts` - Entrypoint: reads env vars, calls `createApp()`, starts server
-  - `db.ts` - `createDB(dbPath)` factory: SQLite schema and prepared queries
+  - `db.ts` - `createDB(dbPath)` factory: runs migrations, prepares queries
+  - `migrate.ts` - Migration runner: applies numbered `.sql` files from `migrations/`
+  - `migrations/` - SQL migration files (`NNN_name.sql` format)
+  - `schema.sql` - Auto-generated snapshot of the current DB schema (updated by tests)
   - `otc.ts` - `createOTCService(db)` factory: one-time code operations
   - `email.ts` - `EmailService` interface + factories: `createSmtpEmailService()`, `createLoggingEmailService()`, `createInMemoryEmailService()`
   - `types.ts` - Backend TypeScript interfaces
@@ -55,7 +58,7 @@ bun test                 # Backend tests (uses temp SQLite DB)
 - **Sync Strategy:** `useShifts` uses 500ms debounced sync with optimistic UI updates.
 - **Auth:** JWT stored in HTTP-only cookies, 30-day expiration. Rate limiting on auth endpoints.
 - **Email:** `EmailService` abstraction with SMTP (nodemailer), logging (console), and in-memory (testing) implementations. `createApp()` requires an `emailService`. Registration OTC is delivered via this service.
-- **Database:** SQLite with prepared statements. Shifts stored as JSON.
+- **Database:** SQLite with prepared statements. Shifts stored as JSON. Schema managed via migration files in `server/migrations/` (see below).
 - **PWA:** Service worker (workbox via vite-plugin-pwa) caches static assets and uses a navigation fallback to `index.html` for offline SPA support. `/api/*` routes are excluded from the navigation fallback (`navigateFallbackDenylist` in `vite.config.ts`) so that server-initiated redirects (e.g., OAuth callbacks) reach the backend instead of being intercepted by the service worker. When debugging issues with routes returning unexpected HTML, check whether the service worker is interfering.
 
 ### API Endpoints
@@ -67,6 +70,14 @@ bun test                 # Backend tests (uses temp SQLite DB)
 - `GET /api/auth/me` - Check auth status
 - `GET/POST/PUT/DELETE /api/labels` - CRUD for shift labels
 - `GET/PUT /api/calendar` - Get/update shift assignments
+
+### Migrations
+
+Schema changes are managed by `server/migrate.ts`. Migration files live in `server/migrations/` and must follow the `NNN_name.sql` naming pattern (e.g., `002_add_notes_column.sql`). They run automatically on startup in sorted order, tracked in a `_migrations` table. To add a migration:
+
+1. Create `server/migrations/NNN_description.sql` with the SQL
+2. Run `bun test` — the schema snapshot test will fail; delete `server/schema.sql` and re-run to regenerate it
+3. Commit both the migration and updated `schema.sql`
 
 ## Environment Variables
 
