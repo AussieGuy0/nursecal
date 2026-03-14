@@ -237,6 +237,45 @@ describe('Labels', () => {
     expect(after).toBeArrayOfSize(3); // back to default 3
   });
 
+  test('DELETE /api/labels/:id removes shift assignments for that label', async () => {
+    // Get a label to use
+    const listRes = await app.handle(
+      new Request(`${BASE}/api/labels`, {
+        headers: { Cookie: cookie },
+      }),
+    );
+    const labels = await listRes.json();
+    const target = labels[0];
+
+    // Assign the label to some dates
+    await app.handle(
+      new Request(`${BASE}/api/calendar`, {
+        method: 'PUT',
+        headers: { Cookie: cookie, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ '2025-01-01': target.id, '2025-01-02': target.id, '2025-01-03': 'other-label' }),
+      }),
+    );
+
+    // Delete the label
+    await app.handle(
+      new Request(`${BASE}/api/labels/${target.id}`, {
+        method: 'DELETE',
+        headers: { Cookie: cookie },
+      }),
+    );
+
+    // Verify the calendar no longer references the deleted label
+    const calRes = await app.handle(
+      new Request(`${BASE}/api/calendar`, {
+        headers: { Cookie: cookie },
+      }),
+    );
+    const shifts = await calRes.json();
+    expect(shifts['2025-01-01']).toBeUndefined();
+    expect(shifts['2025-01-02']).toBeUndefined();
+    expect(shifts['2025-01-03']).toBe('other-label'); // unrelated assignment preserved
+  });
+
   test('PUT /api/labels/:id returns 404 for non-existent label', async () => {
     const res = await app.handle(
       new Request(`${BASE}/api/labels/nonexistent`, {

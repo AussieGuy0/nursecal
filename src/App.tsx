@@ -35,7 +35,10 @@ export default function App() {
 
   const { authenticated, loading: authLoading, login, registerInitiate, registerVerify, logout, email } = useAuth();
   const { labels, addLabel, updateLabel, deleteLabel, loading: labelsLoading } = useLabels(authenticated);
-  const { shifts, setShift, clearShift, getShift, loading: shiftsLoading } = useShifts(authenticated, handleSyncError);
+  const { shifts, setShift, clearShift, getShift, loading: shiftsLoading, refetch: refetchShifts } = useShifts(
+    authenticated,
+    handleSyncError,
+  );
   const { shares, sharedWithMe, addShare, removeShare } = useShares(authenticated);
   const sharedCalendar = useSharedCalendar(viewingOwnerEmail);
   const google = useGoogleCalendar(authenticated, year, month);
@@ -161,7 +164,11 @@ export default function App() {
           labels={labels}
           onAdd={addLabel}
           onUpdate={updateLabel}
-          onDelete={deleteLabel}
+          onDelete={async (id) => {
+            const result = await deleteLabel(id);
+            if (result.success) refetchShifts();
+            return result;
+          }}
           onClose={() => setShowSettings(false)}
           shares={shares}
           onShareAdd={addShare}

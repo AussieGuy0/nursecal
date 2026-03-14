@@ -451,6 +451,18 @@ export function createApp({
 
         labelQueries.delete.run(params.id, user.id);
 
+        // Remove all shift assignments referencing the deleted label
+        const calendar = calendarQueries.findByUserId.get(user.id);
+        if (calendar) {
+          try {
+            const shifts = JSON.parse(calendar.shifts) as ShiftMap;
+            const cleaned = Object.fromEntries(Object.entries(shifts).filter(([, v]) => v !== params.id));
+            calendarQueries.upsert.run(user.id, JSON.stringify(cleaned));
+          } catch {
+            // If parsing fails, leave the calendar as-is
+          }
+        }
+
         return { success: true };
       },
       {
