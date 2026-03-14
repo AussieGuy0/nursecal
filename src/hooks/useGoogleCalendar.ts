@@ -120,7 +120,17 @@ export function useGoogleCalendar(authenticated: boolean, year: number, month: n
   // Group events by date key (YYYY-MM-DD)
   const eventsByDate: Record<string, GoogleCalendarEvent[]> = {};
   for (const event of state.events) {
-    const startDate = event.start.split('T')[0];
+    let startDate: string;
+    if (event.isAllDay || !event.start.includes('T')) {
+      // All-day events use a plain date string (YYYY-MM-DD) — use as-is
+      startDate = event.start.split('T')[0];
+    } else {
+      // Timed events: parse the datetime and convert to local date so that
+      // UTC timestamps (e.g. "2026-03-16T22:00:00Z") land on the correct
+      // local calendar day (e.g. March 17 for a UTC+11 user).
+      const d = new Date(event.start);
+      startDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
     if (!eventsByDate[startDate]) {
       eventsByDate[startDate] = [];
     }
