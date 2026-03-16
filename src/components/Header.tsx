@@ -7,20 +7,9 @@ interface HeaderProps {
   onNextMonth: () => void;
   onToday: () => void;
   onOpenSettings: () => void;
-  email?: string | null;
-  onLogout?: () => void;
 }
 
-export function Header({
-  year,
-  month,
-  onPrevMonth,
-  onNextMonth,
-  onToday,
-  onOpenSettings,
-  email,
-  onLogout,
-}: HeaderProps) {
+export function Header({ year, month, onPrevMonth, onNextMonth, onToday, onOpenSettings }: HeaderProps) {
   return (
     <header className="bg-white border-b border-gray-200">
       <div className="flex items-center justify-between px-4 py-3">
@@ -75,15 +64,6 @@ export function Header({
           </button>
         </div>
       </div>
-
-      {email && onLogout && (
-        <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-t border-gray-100">
-          <span className="text-sm text-gray-600 truncate">{email}</span>
-          <button onClick={onLogout} className="text-sm text-blue-600 hover:text-blue-800">
-            Sign out
-          </button>
-        </div>
-      )}
     </header>
   );
 }

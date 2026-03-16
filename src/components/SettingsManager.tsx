@@ -16,6 +16,7 @@ interface SettingsManagerProps {
   onGoogleConnect?: () => Promise<ActionResult>;
   onGoogleDisconnect?: () => Promise<ActionResult>;
   onToggleGoogleVisibility?: () => Promise<ActionResult>;
+  onLogout?: () => void;
 }
 
 const PRESET_COLORS = [
@@ -63,6 +64,7 @@ export function SettingsManager({
   onGoogleConnect,
   onGoogleDisconnect,
   onToggleGoogleVisibility,
+  onLogout,
 }: SettingsManagerProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
@@ -374,6 +376,18 @@ export function SettingsManager({
                   Connect Google Calendar
                 </button>
               )}
+            </div>
+          )}
+
+          {/* Sign out */}
+          {!showForm && onLogout && (
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <button
+                onClick={onLogout}
+                className="w-full py-2 px-4 text-sm font-medium text-red-600 border border-red-300 rounded-lg hover:bg-red-50 transition-colors"
+              >
+                Sign out
+              </button>
             </div>
           )}
         </div>
