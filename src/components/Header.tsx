@@ -9,14 +9,7 @@ interface HeaderProps {
   onOpenSettings: () => void;
 }
 
-export function Header({
-  year,
-  month,
-  onPrevMonth,
-  onNextMonth,
-  onToday,
-  onOpenSettings,
-}: HeaderProps) {
+export function Header({ year, month, onPrevMonth, onNextMonth, onToday, onOpenSettings }: HeaderProps) {
   return (
     <header className="bg-white border-b border-gray-200">
       <div className="flex items-center justify-between px-4 py-3">
@@ -71,7 +64,6 @@ export function Header({
           </button>
         </div>
       </div>
-
     </header>
   );
 }
