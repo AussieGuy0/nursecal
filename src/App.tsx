@@ -33,7 +33,7 @@ export default function App() {
     [addToast],
   );
 
-  const { authenticated, loading: authLoading, login, registerInitiate, registerVerify, logout, email } = useAuth();
+  const { authenticated, loading: authLoading, login, registerInitiate, registerVerify, logout } = useAuth();
   const { labels, addLabel, updateLabel, deleteLabel, loading: labelsLoading } = useLabels(authenticated);
   const { shifts, setShift, clearShift, getShift, loading: shiftsLoading } = useShifts(authenticated, handleSyncError);
   const { shares, sharedWithMe, addShare, removeShare } = useShares(authenticated);
@@ -117,8 +117,6 @@ export default function App() {
         onNextMonth={handleNextMonth}
         onToday={handleToday}
         onOpenSettings={() => setShowSettings(true)}
-        email={email}
-        onLogout={logout}
       />
 
       <CalendarSwitcher
@@ -171,6 +169,7 @@ export default function App() {
           onGoogleConnect={google.connect}
           onGoogleDisconnect={google.disconnect}
           onToggleGoogleVisibility={google.toggleVisibility}
+          onLogout={logout}
         />
       )}
 
