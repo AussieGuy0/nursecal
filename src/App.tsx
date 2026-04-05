@@ -41,7 +41,14 @@ export default function App() {
     deleteLabel,
     loading: labelsLoading,
   } = useLabels(authenticated, handleSyncError);
-  const { shifts, setShift, clearShift, getShift, loading: shiftsLoading } = useShifts(authenticated, handleSyncError);
+  const currentMonth = `${year}-${String(month + 1).padStart(2, '0')}`;
+  const {
+    shifts,
+    setShift,
+    clearShift,
+    getShift,
+    loading: shiftsLoading,
+  } = useShifts(authenticated, currentMonth, handleSyncError);
   const { shares, sharedWithMe, addShare, removeShare } = useShares(authenticated);
   const sharedCalendar = useSharedCalendar(viewingOwnerEmail);
   const google = useGoogleCalendar(authenticated, year, month);

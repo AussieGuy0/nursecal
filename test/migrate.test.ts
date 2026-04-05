@@ -39,7 +39,7 @@ describe('migrate', () => {
     const tables = getTables(db);
     expect(tables).toContain('users');
     expect(tables).toContain('labels');
-    expect(tables).toContain('calendars');
+    expect(tables).toContain('shifts');
     expect(tables).toContain('otc');
     expect(tables).toContain('oauth_states');
     expect(tables).toContain('google_tokens');
@@ -79,8 +79,8 @@ describe('migrate', () => {
     // Insert a label with foreign key
     db.run("INSERT INTO labels (id, user_id, short_code, name, color) VALUES ('l1', 1, 'E', 'Early', '#ff0000')");
 
-    // Insert calendar data
-    db.run('INSERT INTO calendars (user_id, shifts) VALUES (1, \'{"2025-01-01": "E"}\')');
+    // Insert shift data
+    db.run("INSERT INTO shifts (user_id, date, label_id) VALUES (1, '2025-01-01', 'l1')");
 
     // Verify foreign key enforcement
     expect(() => {

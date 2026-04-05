@@ -157,7 +157,7 @@ describe('Unauthenticated access', () => {
   });
 
   test('GET /api/calendar returns 401', async () => {
-    const res = await app.handle(new Request(`${BASE}/api/calendar`));
+    const res = await app.handle(new Request(`${BASE}/api/calendar?month=2025-01`));
     expect(res.status).toBe(401);
   });
 });
@@ -277,34 +277,41 @@ describe('Calendar', () => {
     labelId3 = await createLabel(cookie, 'N', 'Night', '#0000ff');
   });
 
-  test('GET /api/calendar returns empty object initially', async () => {
+  test('GET /api/calendar?month= returns 400 without month param', async () => {
     const res = await app.handle(
       new Request(`${BASE}/api/calendar`, {
         headers: { Cookie: cookie },
       }),
     );
-    expect(res.status).toBe(200);
-    const data = await res.json();
-    expect(data).toEqual({});
+    expect(res.status).toBe(400);
   });
 
-  test('PUT /api/calendar saves shifts', async () => {
+  test('GET /api/calendar?month=2025-01 returns empty object initially', async () => {
+    const res = await app.handle(
+      new Request(`${BASE}/api/calendar?month=2025-01`, {
+        headers: { Cookie: cookie },
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({});
+  });
+
+  test('PUT /api/calendar?month=2025-01 saves shifts', async () => {
     const shifts = { '2025-01-15': labelId1, '2025-01-16': labelId2 };
     const res = await app.handle(
-      new Request(`${BASE}/api/calendar`, {
+      new Request(`${BASE}/api/calendar?month=2025-01`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Cookie: cookie },
         body: JSON.stringify(shifts),
       }),
     );
     expect(res.status).toBe(200);
-    const data = await res.json();
-    expect(data).toEqual(shifts);
+    expect(await res.json()).toEqual(shifts);
   });
 
-  test('GET /api/calendar returns saved shifts', async () => {
+  test('GET /api/calendar?month=2025-01 returns saved shifts', async () => {
     const res = await app.handle(
-      new Request(`${BASE}/api/calendar`, {
+      new Request(`${BASE}/api/calendar?month=2025-01`, {
         headers: { Cookie: cookie },
       }),
     );
@@ -314,28 +321,48 @@ describe('Calendar', () => {
     expect(data['2025-01-16']).toBe(labelId2);
   });
 
-  test('PUT /api/calendar overwrites previous data', async () => {
-    const newShifts = { '2025-02-01': labelId3 };
+  test('PUT /api/calendar?month replaces only that month, not others', async () => {
+    // Save Feb independently
     await app.handle(
-      new Request(`${BASE}/api/calendar`, {
+      new Request(`${BASE}/api/calendar?month=2025-02`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Cookie: cookie },
-        body: JSON.stringify(newShifts),
+        body: JSON.stringify({ '2025-02-01': labelId3 }),
       }),
     );
 
-    const res = await app.handle(
-      new Request(`${BASE}/api/calendar`, {
-        headers: { Cookie: cookie },
+    // Overwrite Jan with just one shift
+    await app.handle(
+      new Request(`${BASE}/api/calendar?month=2025-01`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Cookie: cookie },
+        body: JSON.stringify({ '2025-01-20': labelId3 }),
       }),
     );
-    const data = await res.json();
-    expect(data).toEqual(newShifts);
+
+    // Jan should only have the new shift
+    const janRes = await app.handle(new Request(`${BASE}/api/calendar?month=2025-01`, { headers: { Cookie: cookie } }));
+    expect(await janRes.json()).toEqual({ '2025-01-20': labelId3 });
+
+    // Feb should be unaffected
+    const febRes = await app.handle(new Request(`${BASE}/api/calendar?month=2025-02`, { headers: { Cookie: cookie } }));
+    expect(await febRes.json()).toEqual({ '2025-02-01': labelId3 });
+  });
+
+  test('PUT /api/calendar rejects dates outside the given month', async () => {
+    const res = await app.handle(
+      new Request(`${BASE}/api/calendar?month=2025-03`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Cookie: cookie },
+        body: JSON.stringify({ '2025-04-01': labelId1 }),
+      }),
+    );
+    expect(res.status).toBe(400);
   });
 
   test('PUT /api/calendar rejects invalid label IDs', async () => {
     const res = await app.handle(
-      new Request(`${BASE}/api/calendar`, {
+      new Request(`${BASE}/api/calendar?month=2025-03`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Cookie: cookie },
         body: JSON.stringify({ '2025-03-01': 'nonexistent-label-id' }),
@@ -346,9 +373,9 @@ describe('Calendar', () => {
     expect(data.error).toBe('Invalid label ID');
   });
 
-  test('PUT /api/calendar accepts empty shifts', async () => {
+  test('PUT /api/calendar accepts empty shifts (clears month)', async () => {
     const res = await app.handle(
-      new Request(`${BASE}/api/calendar`, {
+      new Request(`${BASE}/api/calendar?month=2025-04`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Cookie: cookie },
         body: JSON.stringify({}),
@@ -373,7 +400,7 @@ describe('Sharing', () => {
     ownerLabelId = await createLabel(cookieA, 'E', 'Early', '#ff0000');
     const labelId = ownerLabelId;
     await app.handle(
-      new Request(`${BASE}/api/calendar`, {
+      new Request(`${BASE}/api/calendar?month=2025-03`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Cookie: cookieA },
         body: JSON.stringify({ '2025-03-01': labelId }),

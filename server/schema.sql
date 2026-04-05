@@ -13,12 +13,6 @@ CREATE TABLE calendar_shares (
   UNIQUE (owner_id, shared_with_id)
 );
 
-CREATE TABLE calendars (
-  user_id INTEGER PRIMARY KEY,
-  shifts TEXT NOT NULL DEFAULT '{}',
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
 CREATE TABLE google_tokens (
   user_id INTEGER PRIMARY KEY,
   access_token TEXT NOT NULL,
@@ -50,6 +44,14 @@ CREATE TABLE otc (
   code TEXT NOT NULL,
   password_hash TEXT NOT NULL,
   expires_at INTEGER NOT NULL
+);
+
+CREATE TABLE shifts (
+  user_id  INTEGER NOT NULL,
+  date     TEXT    NOT NULL,
+  label_id TEXT    NOT NULL,
+  PRIMARY KEY (user_id, date),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE users (

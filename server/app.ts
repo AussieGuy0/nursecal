@@ -43,7 +43,7 @@ export function createApp({
   emailService: EmailService;
   emailDomain?: string;
 }) {
-  const { userQueries, labelQueries, calendarQueries, shareQueries, oauthStateQueries, googleTokenQueries, db } =
+  const { userQueries, labelQueries, shiftQueries, shareQueries, oauthStateQueries, googleTokenQueries, db } =
     createDB(dbPath);
   const { storeOTC, getOTC, deleteOTC } = createOTCService(db);
 
@@ -246,9 +246,6 @@ export function createApp({
         for (const label of DEFAULT_LABELS) {
           labelQueries.create.run(generateId(), userId, label.shortCode, label.name, label.color);
         }
-
-        // Initialize empty calendar
-        calendarQueries.upsert.run(userId, '{}');
 
         // Create JWT token
         const token = await jwt.sign({
@@ -460,48 +457,69 @@ export function createApp({
       },
     )
     // Calendar routes
-    .get('/api/calendar', ({ user, set }) => {
-      if (!user) {
-        set.status = 401;
-        return { error: 'Unauthorized' };
-      }
-
-      const calendar = calendarQueries.findByUserId.get(user.id);
-
-      if (!calendar) {
-        return {} as ShiftMap;
-      }
-
-      try {
-        return JSON.parse(calendar.shifts) as ShiftMap;
-      } catch {
-        return {} as ShiftMap;
-      }
-    })
-    .put(
+    .get(
       '/api/calendar',
-      ({ user, body, set }) => {
+      ({ user, query, set }) => {
         if (!user) {
           set.status = 401;
           return { error: 'Unauthorized' };
         }
 
-        if (Object.keys(body).length > 0) {
+        const { month } = query;
+        if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+          set.status = 400;
+          return { error: 'month query parameter required (YYYY-MM)' };
+        }
+
+        const rows = shiftQueries.findByMonth.all(user.id, `${month}-%`);
+        const result: ShiftMap = {};
+        for (const row of rows) {
+          result[row.date] = row.label_id;
+        }
+        return result;
+      },
+      {
+        query: t.Object({ month: t.Optional(t.String()) }),
+      },
+    )
+    .put(
+      '/api/calendar',
+      ({ user, query, body, set }) => {
+        if (!user) {
+          set.status = 401;
+          return { error: 'Unauthorized' };
+        }
+
+        const { month } = query;
+        if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+          set.status = 400;
+          return { error: 'month query parameter required (YYYY-MM)' };
+        }
+
+        const entries = Object.entries(body);
+
+        if (entries.length > 0) {
+          const invalidDate = entries.find(([date]) => !date.startsWith(`${month}-`));
+          if (invalidDate) {
+            set.status = 400;
+            return { error: `Date ${invalidDate[0]} does not belong to month ${month}` };
+          }
+
           const userLabels = labelQueries.findByUserId.all(user.id);
           const validLabelIds = new Set(userLabels.map((l) => l.id));
-          const invalidId = Object.values(body).find((id) => !validLabelIds.has(id));
+          const invalidId = entries.find(([, id]) => !validLabelIds.has(id));
           if (invalidId) {
             set.status = 400;
             return { error: 'Invalid label ID' };
           }
         }
 
-        const shiftsJson = JSON.stringify(body);
-        calendarQueries.upsert.run(user.id, shiftsJson);
+        shiftQueries.upsertMonth(user.id, `${month}-%`, entries);
 
         return body;
       },
       {
+        query: t.Object({ month: t.Optional(t.String()) }),
         body: t.Record(t.String(), t.String()),
       },
     )
@@ -632,10 +650,13 @@ export function createApp({
           return { error: 'Calendar not found' };
         }
 
-        const calendar = calendarQueries.findByUserId.get(owner.id);
+        const shiftRows = shiftQueries.findAllByUserId.all(owner.id);
         const labels = labelQueries.findByUserId.all(owner.id);
 
-        const shifts: ShiftMap = calendar ? JSON.parse(calendar.shifts) : {};
+        const shifts: ShiftMap = {};
+        for (const row of shiftRows) {
+          shifts[row.date] = row.label_id;
+        }
         const labelResponse: LabelResponse[] = labels.map((l) => ({
           id: l.id,
           shortCode: l.short_code,

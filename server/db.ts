@@ -49,14 +49,25 @@ export function createDB(dbPath: string) {
     delete: db.prepare('DELETE FROM labels WHERE id = ? AND user_id = ?'),
   };
 
-  const calendarQueries = {
-    findByUserId: db.prepare<{ user_id: number; shifts: string }, [number]>(
-      'SELECT * FROM calendars WHERE user_id = ?',
+  const shiftQueries = {
+    findByMonth: db.prepare<{ date: string; label_id: string }, [number, string]>(
+      'SELECT date, label_id FROM shifts WHERE user_id = ? AND date LIKE ? ORDER BY date',
     ),
 
-    upsert: db.prepare(
-      'INSERT INTO calendars (user_id, shifts) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET shifts = excluded.shifts',
+    findAllByUserId: db.prepare<{ date: string; label_id: string }, [number]>(
+      'SELECT date, label_id FROM shifts WHERE user_id = ? ORDER BY date',
     ),
+
+    deleteByMonth: db.prepare('DELETE FROM shifts WHERE user_id = ? AND date LIKE ?'),
+
+    insert: db.prepare('INSERT OR REPLACE INTO shifts (user_id, date, label_id) VALUES (?, ?, ?)'),
+
+    upsertMonth: db.transaction((userId: number, monthPrefix: string, entries: Array<[string, string]>) => {
+      shiftQueries.deleteByMonth.run(userId, monthPrefix);
+      for (const [date, labelId] of entries) {
+        shiftQueries.insert.run(userId, date, labelId);
+      }
+    }),
   };
 
   const oauthStateQueries = {
@@ -128,7 +139,7 @@ export function createDB(dbPath: string) {
     delete: db.prepare('DELETE FROM google_tokens WHERE user_id = ?'),
   };
 
-  return { db, userQueries, labelQueries, calendarQueries, shareQueries, oauthStateQueries, googleTokenQueries };
+  return { db, userQueries, labelQueries, shiftQueries, shareQueries, oauthStateQueries, googleTokenQueries };
 }
 
 // Helper to generate UUIDs for labels
