@@ -83,9 +83,7 @@ export async function exchangeCodeForTokens(code: string): Promise<GoogleTokenRe
   return res.json();
 }
 
-export type RefreshResult =
-  | { ok: true; tokens: GoogleTokenResponse }
-  | { ok: false; permanent: boolean }; // permanent=true means token is revoked/invalid
+export type RefreshResult = { ok: true; tokens: GoogleTokenResponse } | { ok: false; permanent: boolean }; // permanent=true means token is revoked/invalid
 
 export async function refreshAccessToken(refreshToken: string): Promise<RefreshResult> {
   const clientId = process.env.GOOGLE_CLIENT_ID;

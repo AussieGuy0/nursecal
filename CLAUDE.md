@@ -25,6 +25,17 @@ bun run tsc              # Frontend type check only
 
 # Tests
 bun test                 # Backend tests (uses temp SQLite DB)
+
+# Formatting
+bun run format           # Run Prettier on all files
+```
+
+## Pre-Push Checklist
+
+Always run Prettier before pushing:
+
+```bash
+bun run format
 ```
 
 ## Architecture
