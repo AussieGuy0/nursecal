@@ -765,7 +765,11 @@ export function createApp({
           return { error: 'Failed to refresh Google token. Please try again later.' };
         }
         accessToken = refreshResult.tokens.access_token;
-        googleTokenQueries.updateAccessToken.run(accessToken, Date.now() + refreshResult.tokens.expires_in * 1000, user.id);
+        googleTokenQueries.updateAccessToken.run(
+          accessToken,
+          Date.now() + refreshResult.tokens.expires_in * 1000,
+          user.id,
+        );
       }
 
       const { timeMin, timeMax } = query;

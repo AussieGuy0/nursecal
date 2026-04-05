@@ -556,9 +556,7 @@ describe('Google Calendar - Token refresh', () => {
 
   // Connect with a token that is already expired (expires_in = -7200 → 2 hours in the past)
   async function connectWithExpiredToken() {
-    const authRes = await app.handle(
-      new Request(`${BASE}/api/google/auth`, { headers: { Cookie: cookie } }),
-    );
+    const authRes = await app.handle(new Request(`${BASE}/api/google/auth`, { headers: { Cookie: cookie } }));
     const { url } = await authRes.json();
     const state = new URL(url).searchParams.get('state')!;
 
@@ -583,9 +581,7 @@ describe('Google Calendar - Token refresh', () => {
   test('transient refresh failure returns 503 and preserves integration', async () => {
     await connectWithExpiredToken();
 
-    mockRefreshAccessToken.mockImplementationOnce(() =>
-      Promise.resolve({ ok: false as const, permanent: false }),
-    );
+    mockRefreshAccessToken.mockImplementationOnce(() => Promise.resolve({ ok: false as const, permanent: false }));
 
     const res = await app.handle(
       new Request(`${BASE}/api/google/events?timeMin=2025-03-01T00:00:00Z&timeMax=2025-03-31T00:00:00Z`, {
@@ -595,18 +591,14 @@ describe('Google Calendar - Token refresh', () => {
     expect(res.status).toBe(503);
 
     // Integration must still be intact
-    const statusRes = await app.handle(
-      new Request(`${BASE}/api/google/status`, { headers: { Cookie: cookie } }),
-    );
+    const statusRes = await app.handle(new Request(`${BASE}/api/google/status`, { headers: { Cookie: cookie } }));
     const status = await statusRes.json();
     expect(status.connected).toBe(true);
   });
 
   test('permanent refresh failure returns 401 and removes integration', async () => {
     // Token is still expired in the DB — no need to reconnect
-    mockRefreshAccessToken.mockImplementationOnce(() =>
-      Promise.resolve({ ok: false as const, permanent: true }),
-    );
+    mockRefreshAccessToken.mockImplementationOnce(() => Promise.resolve({ ok: false as const, permanent: true }));
 
     const res = await app.handle(
       new Request(`${BASE}/api/google/events?timeMin=2025-03-01T00:00:00Z&timeMax=2025-03-31T00:00:00Z`, {
@@ -616,9 +608,7 @@ describe('Google Calendar - Token refresh', () => {
     expect(res.status).toBe(401);
 
     // Integration must be removed
-    const statusRes = await app.handle(
-      new Request(`${BASE}/api/google/status`, { headers: { Cookie: cookie } }),
-    );
+    const statusRes = await app.handle(new Request(`${BASE}/api/google/status`, { headers: { Cookie: cookie } }));
     const status = await statusRes.json();
     expect(status.connected).toBe(false);
   });
@@ -644,9 +634,7 @@ describe('Google Calendar - Token refresh', () => {
     expect(events[0].id).toBe('event1');
 
     // Integration remains connected
-    const statusRes = await app.handle(
-      new Request(`${BASE}/api/google/status`, { headers: { Cookie: cookie } }),
-    );
+    const statusRes = await app.handle(new Request(`${BASE}/api/google/status`, { headers: { Cookie: cookie } }));
     const status = await statusRes.json();
     expect(status.connected).toBe(true);
   });
