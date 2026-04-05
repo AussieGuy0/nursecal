@@ -58,6 +58,19 @@ async function registerUser(email: string, password: string): Promise<string> {
   return cookie!.split(';')[0]; // "auth=<token>"
 }
 
+/** Create a label and return its ID. */
+async function createLabel(cookie: string, shortCode: string, name: string, color: string): Promise<string> {
+  const res = await app.handle(
+    new Request(`${BASE}/api/labels`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({ shortCode, name, color }),
+    }),
+  );
+  const data = await res.json();
+  return data.id as string;
+}
+
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
 describe('Auth', () => {
@@ -253,9 +266,15 @@ describe('Labels', () => {
 
 describe('Calendar', () => {
   let cookie: string;
+  let labelId1: string;
+  let labelId2: string;
+  let labelId3: string;
 
   beforeAll(async () => {
     cookie = await registerUser('calendar@test.com', 'password123');
+    labelId1 = await createLabel(cookie, 'E', 'Early', '#ff0000');
+    labelId2 = await createLabel(cookie, 'L', 'Late', '#00ff00');
+    labelId3 = await createLabel(cookie, 'N', 'Night', '#0000ff');
   });
 
   test('GET /api/calendar returns empty object initially', async () => {
@@ -270,7 +289,7 @@ describe('Calendar', () => {
   });
 
   test('PUT /api/calendar saves shifts', async () => {
-    const shifts = { '2025-01-15': 'label1', '2025-01-16': 'label2' };
+    const shifts = { '2025-01-15': labelId1, '2025-01-16': labelId2 };
     const res = await app.handle(
       new Request(`${BASE}/api/calendar`, {
         method: 'PUT',
@@ -291,12 +310,12 @@ describe('Calendar', () => {
     );
     expect(res.status).toBe(200);
     const data = await res.json();
-    expect(data['2025-01-15']).toBe('label1');
-    expect(data['2025-01-16']).toBe('label2');
+    expect(data['2025-01-15']).toBe(labelId1);
+    expect(data['2025-01-16']).toBe(labelId2);
   });
 
   test('PUT /api/calendar overwrites previous data', async () => {
-    const newShifts = { '2025-02-01': 'label3' };
+    const newShifts = { '2025-02-01': labelId3 };
     await app.handle(
       new Request(`${BASE}/api/calendar`, {
         method: 'PUT',
@@ -313,6 +332,30 @@ describe('Calendar', () => {
     const data = await res.json();
     expect(data).toEqual(newShifts);
   });
+
+  test('PUT /api/calendar rejects invalid label IDs', async () => {
+    const res = await app.handle(
+      new Request(`${BASE}/api/calendar`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Cookie: cookie },
+        body: JSON.stringify({ '2025-03-01': 'nonexistent-label-id' }),
+      }),
+    );
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toBe('Invalid label ID');
+  });
+
+  test('PUT /api/calendar accepts empty shifts', async () => {
+    const res = await app.handle(
+      new Request(`${BASE}/api/calendar`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Cookie: cookie },
+        body: JSON.stringify({}),
+      }),
+    );
+    expect(res.status).toBe(200);
+  });
 });
 
 // ─── Sharing ──────────────────────────────────────────────────────────────────
@@ -320,17 +363,20 @@ describe('Calendar', () => {
 describe('Sharing', () => {
   let cookieA: string;
   let cookieB: string;
+  let ownerLabelId: string;
 
   beforeAll(async () => {
     cookieA = await registerUser('owner@test.com', 'password123');
     cookieB = await registerUser('viewer@test.com', 'password123');
 
-    // Owner sets up some shifts
+    // Owner sets up a label and some shifts
+    ownerLabelId = await createLabel(cookieA, 'E', 'Early', '#ff0000');
+    const labelId = ownerLabelId;
     await app.handle(
       new Request(`${BASE}/api/calendar`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Cookie: cookieA },
-        body: JSON.stringify({ '2025-03-01': 'label1' }),
+        body: JSON.stringify({ '2025-03-01': labelId }),
       }),
     );
   });
@@ -436,7 +482,7 @@ describe('Sharing', () => {
     );
     expect(res.status).toBe(200);
     const data = await res.json();
-    expect(data.shifts).toEqual({ '2025-03-01': 'label1' });
+    expect(data.shifts).toEqual({ '2025-03-01': ownerLabelId });
     expect(data.labels).toBeArray();
     expect(data.labels.length).toBeGreaterThan(0);
     expect(data.labels[0].shortCode).toBeDefined();

@@ -486,6 +486,16 @@ export function createApp({
           return { error: 'Unauthorized' };
         }
 
+        if (Object.keys(body).length > 0) {
+          const userLabels = labelQueries.findByUserId.all(user.id);
+          const validLabelIds = new Set(userLabels.map((l) => l.id));
+          const invalidId = Object.values(body).find((id) => !validLabelIds.has(id));
+          if (invalidId) {
+            set.status = 400;
+            return { error: 'Invalid label ID' };
+          }
+        }
+
         const shiftsJson = JSON.stringify(body);
         calendarQueries.upsert.run(user.id, shiftsJson);
 

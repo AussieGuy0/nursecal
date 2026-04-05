@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Label, ActionResult } from '../types';
 
-export function useLabels(authenticated: boolean) {
+export function useLabels(authenticated: boolean, onFetchError?: (error: string) => void) {
   const [labels, setLabels] = useState<Label[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -18,13 +18,15 @@ export function useLabels(authenticated: boolean) {
       if (res.ok) {
         const data = await res.json();
         setLabels(data);
+      } else {
+        onFetchError?.('Failed to load labels');
       }
     } catch {
-      console.error('Failed to fetch labels');
+      onFetchError?.('Network error — could not load labels');
     } finally {
       setLoading(false);
     }
-  }, [authenticated]);
+  }, [authenticated, onFetchError]);
 
   useEffect(() => {
     fetchLabels();

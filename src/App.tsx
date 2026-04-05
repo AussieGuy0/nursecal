@@ -34,7 +34,13 @@ export default function App() {
   );
 
   const { authenticated, loading: authLoading, login, registerInitiate, registerVerify, logout } = useAuth();
-  const { labels, addLabel, updateLabel, deleteLabel, loading: labelsLoading } = useLabels(authenticated);
+  const {
+    labels,
+    addLabel,
+    updateLabel,
+    deleteLabel,
+    loading: labelsLoading,
+  } = useLabels(authenticated, handleSyncError);
   const { shifts, setShift, clearShift, getShift, loading: shiftsLoading } = useShifts(authenticated, handleSyncError);
   const { shares, sharedWithMe, addShare, removeShare } = useShares(authenticated);
   const sharedCalendar = useSharedCalendar(viewingOwnerEmail);
