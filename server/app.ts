@@ -754,14 +754,18 @@ export function createApp({
 
       let accessToken = record.access_token;
       if (Date.now() >= record.expires_at) {
-        const refreshed = await refreshAccessToken(record.refresh_token);
-        if (!refreshed) {
-          googleTokenQueries.delete.run(user.id);
-          set.status = 401;
-          return { error: 'Google token expired. Please reconnect.' };
+        const refreshResult = await refreshAccessToken(record.refresh_token);
+        if (!refreshResult.ok) {
+          if (refreshResult.permanent) {
+            googleTokenQueries.delete.run(user.id);
+            set.status = 401;
+            return { error: 'Google token expired. Please reconnect.' };
+          }
+          set.status = 503;
+          return { error: 'Failed to refresh Google token. Please try again later.' };
         }
-        accessToken = refreshed.access_token;
-        googleTokenQueries.updateAccessToken.run(accessToken, Date.now() + refreshed.expires_in * 1000, user.id);
+        accessToken = refreshResult.tokens.access_token;
+        googleTokenQueries.updateAccessToken.run(accessToken, Date.now() + refreshResult.tokens.expires_in * 1000, user.id);
       }
 
       const { timeMin, timeMax } = query;

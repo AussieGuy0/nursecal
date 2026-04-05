@@ -21,10 +21,13 @@ const mockExchangeCodeForTokens = mock(() =>
 
 const mockRefreshAccessToken = mock(() =>
   Promise.resolve({
-    access_token: 'refreshed-access-token',
-    expires_in: 3600,
-    scope: 'https://www.googleapis.com/auth/calendar.readonly',
-    token_type: 'Bearer',
+    ok: true as const,
+    tokens: {
+      access_token: 'refreshed-access-token',
+      expires_in: 3600,
+      scope: 'https://www.googleapis.com/auth/calendar.readonly',
+      token_type: 'Bearer',
+    },
   }),
 );
 
@@ -539,5 +542,112 @@ describe('Google Calendar', () => {
       const body = await res.json();
       expect(body.success).toBe(true);
     });
+  });
+});
+
+// ─── Token refresh behavior ──────────────────────────────────────────────────
+
+describe('Google Calendar - Token refresh', () => {
+  let cookie: string;
+
+  beforeAll(async () => {
+    cookie = await registerUser('refresh@test.com', 'password123');
+  });
+
+  // Connect with a token that is already expired (expires_in = -7200 → 2 hours in the past)
+  async function connectWithExpiredToken() {
+    const authRes = await app.handle(
+      new Request(`${BASE}/api/google/auth`, { headers: { Cookie: cookie } }),
+    );
+    const { url } = await authRes.json();
+    const state = new URL(url).searchParams.get('state')!;
+
+    mockExchangeCodeForTokens.mockImplementationOnce(() =>
+      Promise.resolve({
+        access_token: 'expired-access-token',
+        refresh_token: 'mock-refresh-token',
+        expires_in: -7200,
+        scope: 'https://www.googleapis.com/auth/calendar.readonly',
+        token_type: 'Bearer',
+      }),
+    );
+
+    const res = await app.handle(
+      new Request(`${BASE}/api/google/callback?code=valid-code&state=${state}`, {
+        headers: { Cookie: cookie },
+      }),
+    );
+    expect(res.status).toBe(302);
+  }
+
+  test('transient refresh failure returns 503 and preserves integration', async () => {
+    await connectWithExpiredToken();
+
+    mockRefreshAccessToken.mockImplementationOnce(() =>
+      Promise.resolve({ ok: false as const, permanent: false }),
+    );
+
+    const res = await app.handle(
+      new Request(`${BASE}/api/google/events?timeMin=2025-03-01T00:00:00Z&timeMax=2025-03-31T00:00:00Z`, {
+        headers: { Cookie: cookie },
+      }),
+    );
+    expect(res.status).toBe(503);
+
+    // Integration must still be intact
+    const statusRes = await app.handle(
+      new Request(`${BASE}/api/google/status`, { headers: { Cookie: cookie } }),
+    );
+    const status = await statusRes.json();
+    expect(status.connected).toBe(true);
+  });
+
+  test('permanent refresh failure returns 401 and removes integration', async () => {
+    // Token is still expired in the DB — no need to reconnect
+    mockRefreshAccessToken.mockImplementationOnce(() =>
+      Promise.resolve({ ok: false as const, permanent: true }),
+    );
+
+    const res = await app.handle(
+      new Request(`${BASE}/api/google/events?timeMin=2025-03-01T00:00:00Z&timeMax=2025-03-31T00:00:00Z`, {
+        headers: { Cookie: cookie },
+      }),
+    );
+    expect(res.status).toBe(401);
+
+    // Integration must be removed
+    const statusRes = await app.handle(
+      new Request(`${BASE}/api/google/status`, { headers: { Cookie: cookie } }),
+    );
+    const status = await statusRes.json();
+    expect(status.connected).toBe(false);
+  });
+
+  test('successful refresh updates token and returns events', async () => {
+    await connectWithExpiredToken();
+
+    mockRefreshAccessToken.mockImplementationOnce(() =>
+      Promise.resolve({
+        ok: true as const,
+        tokens: { access_token: 'new-access-token', expires_in: 3600 },
+      }),
+    );
+
+    const res = await app.handle(
+      new Request(`${BASE}/api/google/events?timeMin=2025-03-01T00:00:00Z&timeMax=2025-03-31T00:00:00Z`, {
+        headers: { Cookie: cookie },
+      }),
+    );
+    expect(res.status).toBe(200);
+    const events = await res.json();
+    expect(events).toBeArrayOfSize(1);
+    expect(events[0].id).toBe('event1');
+
+    // Integration remains connected
+    const statusRes = await app.handle(
+      new Request(`${BASE}/api/google/status`, { headers: { Cookie: cookie } }),
+    );
+    const status = await statusRes.json();
+    expect(status.connected).toBe(true);
   });
 });

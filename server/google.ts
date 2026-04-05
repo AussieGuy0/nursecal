@@ -83,24 +83,36 @@ export async function exchangeCodeForTokens(code: string): Promise<GoogleTokenRe
   return res.json();
 }
 
-export async function refreshAccessToken(refreshToken: string): Promise<GoogleTokenResponse | null> {
+export type RefreshResult =
+  | { ok: true; tokens: GoogleTokenResponse }
+  | { ok: false; permanent: boolean }; // permanent=true means token is revoked/invalid
+
+export async function refreshAccessToken(refreshToken: string): Promise<RefreshResult> {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  if (!clientId || !clientSecret) return null;
+  if (!clientId || !clientSecret) return { ok: false, permanent: false };
 
-  const res = await fetch(GOOGLE_TOKEN_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: refreshToken,
-      grant_type: 'refresh_token',
-    }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(GOOGLE_TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        refresh_token: refreshToken,
+        grant_type: 'refresh_token',
+      }),
+    });
+  } catch {
+    return { ok: false, permanent: false };
+  }
 
-  if (!res.ok) return null;
-  return res.json();
+  if (!res.ok) {
+    // 4xx means the token itself is invalid/revoked; 5xx is a transient Google error
+    return { ok: false, permanent: res.status >= 400 && res.status < 500 };
+  }
+  return { ok: true, tokens: await res.json() };
 }
 
 export async function revokeToken(token: string): Promise<boolean> {
