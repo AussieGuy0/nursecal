@@ -25,12 +25,16 @@ db.exec(readMigration('001_initial.sql'));
 console.log('Seeding test data...\n');
 
 // User 1: has valid shifts + one orphaned label reference
-const u1 = db.prepare<{ id: number }, [string, string]>(
-  'INSERT INTO users (email, password_hash) VALUES (?, ?) RETURNING id',
-).get('alice@example.com', 'hash1')!;
+const u1 = db
+  .prepare<{ id: number }, [string, string]>('INSERT INTO users (email, password_hash) VALUES (?, ?) RETURNING id')
+  .get('alice@example.com', 'hash1')!;
 
-db.run("INSERT INTO labels (id, user_id, short_code, name, color) VALUES ('early', ?, 'E', 'Early', '#22c55e')", [u1.id]);
-db.run("INSERT INTO labels (id, user_id, short_code, name, color) VALUES ('late',  ?, 'L', 'Late',  '#3b82f6')", [u1.id]);
+db.run("INSERT INTO labels (id, user_id, short_code, name, color) VALUES ('early', ?, 'E', 'Early', '#22c55e')", [
+  u1.id,
+]);
+db.run("INSERT INTO labels (id, user_id, short_code, name, color) VALUES ('late',  ?, 'L', 'Late',  '#3b82f6')", [
+  u1.id,
+]);
 // 'deleted-label' was once inserted but then removed — simulating a deleted label
 const shifts1 = JSON.stringify({
   '2025-01-01': 'early',
@@ -40,15 +44,15 @@ const shifts1 = JSON.stringify({
 db.run('INSERT INTO calendars (user_id, shifts) VALUES (?, ?)', [u1.id, shifts1]);
 
 // User 2: empty calendar
-const u2 = db.prepare<{ id: number }, [string, string]>(
-  'INSERT INTO users (email, password_hash) VALUES (?, ?) RETURNING id',
-).get('bob@example.com', 'hash2')!;
+const u2 = db
+  .prepare<{ id: number }, [string, string]>('INSERT INTO users (email, password_hash) VALUES (?, ?) RETURNING id')
+  .get('bob@example.com', 'hash2')!;
 db.run("INSERT INTO calendars (user_id, shifts) VALUES (?, '{}')", [u2.id]);
 
 // User 3: all shifts are orphaned (label deleted after assignment)
-const u3 = db.prepare<{ id: number }, [string, string]>(
-  'INSERT INTO users (email, password_hash) VALUES (?, ?) RETURNING id',
-).get('carol@example.com', 'hash3')!;
+const u3 = db
+  .prepare<{ id: number }, [string, string]>('INSERT INTO users (email, password_hash) VALUES (?, ?) RETURNING id')
+  .get('carol@example.com', 'hash3')!;
 const shifts3 = JSON.stringify({
   '2025-02-01': 'ghost-label',
   '2025-02-02': 'another-ghost',
@@ -96,14 +100,22 @@ function assert(condition: boolean, message: string) {
 console.log('── Assertions ──────────────────────────────────────');
 
 // calendars table no longer exists
-const tableExists = (db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get('calendars') as { name: string } | null);
+const tableExists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get('calendars') as {
+  name: string;
+} | null;
 assert(tableExists === null, 'calendars table was dropped');
 
 // User 1: 2 valid rows, orphaned one skipped
 const u1Days = days.filter((d) => d.user_id === u1.id);
 assert(u1Days.length === 2, 'alice: 2 rows migrated (orphaned entry skipped)');
-assert(u1Days.some((d) => d.date === '2025-01-01' && d.label_id === 'early'), 'alice: 2025-01-01 → early');
-assert(u1Days.some((d) => d.date === '2025-01-02' && d.label_id === 'late'), 'alice: 2025-01-02 → late');
+assert(
+  u1Days.some((d) => d.date === '2025-01-01' && d.label_id === 'early'),
+  'alice: 2025-01-01 → early',
+);
+assert(
+  u1Days.some((d) => d.date === '2025-01-02' && d.label_id === 'late'),
+  'alice: 2025-01-02 → late',
+);
 assert(!u1Days.some((d) => d.label_id === 'deleted-label'), 'alice: orphaned deleted-label not migrated');
 
 // User 2: empty calendar → no rows
