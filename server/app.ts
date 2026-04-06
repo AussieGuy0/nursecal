@@ -14,10 +14,7 @@ import {
   fetchAllCalendarEvents,
 } from './google';
 import type { EmailService } from './email';
-
-// Rate limiting configuration
-const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
-const RATE_LIMIT_MAX_ATTEMPTS = 5;
+import { createInMemoryRateLimiter } from './rateLimit';
 const MAX_SHARES = 50;
 
 // Password hashing using Bun's native crypto
@@ -47,8 +44,7 @@ export function createApp({
     createDB(dbPath);
   const { storeOTC, getOTC, deleteOTC } = createOTCService(db);
 
-  // In-memory rate limit store: IP -> { count, resetTime }
-  const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+  const rateLimiter = createInMemoryRateLimiter({ windowMs: 15 * 60 * 1000, maxAttempts: 5 });
 
   // Per-email OTC failed attempt tracking: email -> failedCount
   // Cleared on successful verification or when OTC is deleted.
@@ -56,33 +52,10 @@ export function createApp({
   const OTC_MAX_FAILED_ATTEMPTS = 5;
   const otcFailedAttempts = new Map<string, number>();
 
-  function checkRateLimit(ip: string): { allowed: boolean; retryAfterSeconds?: number } {
-    const now = Date.now();
-    const record = rateLimitStore.get(ip);
-
-    if (!record || now > record.resetTime) {
-      rateLimitStore.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
-      return { allowed: true };
-    }
-
-    if (record.count >= RATE_LIMIT_MAX_ATTEMPTS) {
-      const retryAfterSeconds = Math.ceil((record.resetTime - now) / 1000);
-      return { allowed: false, retryAfterSeconds };
-    }
-
-    record.count++;
-    return { allowed: true };
-  }
-
   // Cleanup old entries periodically
   setInterval(() => {
-    const now = Date.now();
-    for (const [ip, record] of rateLimitStore) {
-      if (now > record.resetTime) {
-        rateLimitStore.delete(ip);
-      }
-    }
-    oauthStateQueries.deleteExpired.run(now);
+    rateLimiter.cleanup();
+    oauthStateQueries.deleteExpired.run(Date.now());
     // Remove OTC attempt counters for emails that no longer have a pending OTC
     for (const email of otcFailedAttempts.keys()) {
       if (!getOTC(email)) {
@@ -151,7 +124,7 @@ export function createApp({
           request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
           request.headers.get('x-real-ip') ||
           'unknown';
-        const rateLimit = checkRateLimit(`register:${ip}`);
+        const rateLimit = rateLimiter.check(`register:${ip}`);
         if (!rateLimit.allowed) {
           set.status = 429;
           set.headers['Retry-After'] = String(rateLimit.retryAfterSeconds);
@@ -201,7 +174,7 @@ export function createApp({
           request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
           request.headers.get('x-real-ip') ||
           'unknown';
-        const rateLimit = checkRateLimit(`register-verify:${ip}`);
+        const rateLimit = rateLimiter.check(`register-verify:${ip}`);
         if (!rateLimit.allowed) {
           set.status = 429;
           set.headers['Retry-After'] = String(rateLimit.retryAfterSeconds);
@@ -293,7 +266,7 @@ export function createApp({
           request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
           request.headers.get('x-real-ip') ||
           'unknown';
-        const rateLimit = checkRateLimit(`login:${ip}`);
+        const rateLimit = rateLimiter.check(`login:${ip}`);
         if (!rateLimit.allowed) {
           set.status = 429;
           set.headers['Retry-After'] = String(rateLimit.retryAfterSeconds);
@@ -495,7 +468,7 @@ export function createApp({
               request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
               request.headers.get('x-real-ip') ||
               'unknown';
-            const rateLimit = checkRateLimit(`share:${ip}`);
+            const rateLimit = rateLimiter.check(`share:${ip}`);
             if (!rateLimit.allowed) {
               set.status = 429;
               set.headers['Retry-After'] = String(rateLimit.retryAfterSeconds);
