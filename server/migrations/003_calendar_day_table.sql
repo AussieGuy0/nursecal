@@ -19,7 +19,7 @@
 -- Note: users with no calendar days will not get a row in calendars (the app
 -- handled a missing row as an empty calendar, so this is fine).
 --
-CREATE TABLE calendar_day (
+CREATE TABLE IF NOT EXISTS calendar_day (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
   date TEXT NOT NULL,
@@ -30,11 +30,11 @@ CREATE TABLE calendar_day (
 );
 
 -- Migrate existing data from the JSON blob, skipping any orphaned label references
-INSERT INTO calendar_day (user_id, date, label_id)
+INSERT OR IGNORE INTO calendar_day (user_id, date, label_id)
 SELECT c.user_id, j.key, j.value
 FROM calendars c, json_each(c.shifts) j
 WHERE c.shifts IS NOT NULL AND c.shifts != '{}'
   AND j.value IN (SELECT id FROM labels);
 
 -- Drop the old calendars table
-DROP TABLE calendars;
+DROP TABLE IF EXISTS calendars;
