@@ -9,11 +9,12 @@ CREATE TABLE calendar_day (
   UNIQUE (user_id, date)
 );
 
--- Migrate existing data from the JSON blob
+-- Migrate existing data from the JSON blob, skipping any orphaned label references
 INSERT INTO calendar_day (user_id, date, label_id)
 SELECT c.user_id, j.key, j.value
 FROM calendars c, json_each(c.shifts) j
-WHERE c.shifts IS NOT NULL AND c.shifts != '{}';
+WHERE c.shifts IS NOT NULL AND c.shifts != '{}'
+  AND j.value IN (SELECT id FROM labels);
 
 -- Drop the old calendars table
 DROP TABLE calendars;
