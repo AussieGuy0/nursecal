@@ -43,7 +43,7 @@ export function createApp({
   emailService: EmailService;
   emailDomain?: string;
 }) {
-  const { userQueries, labelQueries, calendarQueries, shareQueries, oauthStateQueries, googleTokenQueries, db } =
+  const { userQueries, labelQueries, calendarDayQueries, shareQueries, oauthStateQueries, googleTokenQueries, db } =
     createDB(dbPath);
   const { storeOTC, getOTC, deleteOTC } = createOTCService(db);
 
@@ -246,9 +246,6 @@ export function createApp({
         for (const label of DEFAULT_LABELS) {
           labelQueries.create.run(generateId(), userId, label.shortCode, label.name, label.color);
         }
-
-        // Initialize empty calendar
-        calendarQueries.upsert.run(userId, '{}');
 
         // Create JWT token
         const token = await jwt.sign({
@@ -466,17 +463,12 @@ export function createApp({
         return { error: 'Unauthorized' };
       }
 
-      const calendar = calendarQueries.findByUserId.get(user.id);
-
-      if (!calendar) {
-        return {} as ShiftMap;
+      const days = calendarDayQueries.findByUserId.all(user.id);
+      const shifts: ShiftMap = {};
+      for (const day of days) {
+        shifts[day.date] = day.label_id;
       }
-
-      try {
-        return JSON.parse(calendar.shifts) as ShiftMap;
-      } catch {
-        return {} as ShiftMap;
-      }
+      return shifts;
     })
     .put(
       '/api/calendar',
@@ -496,8 +488,12 @@ export function createApp({
           }
         }
 
-        const shiftsJson = JSON.stringify(body);
-        calendarQueries.upsert.run(user.id, shiftsJson);
+        db.transaction(() => {
+          calendarDayQueries.deleteByUserId.run(user.id);
+          for (const [date, labelId] of Object.entries(body)) {
+            calendarDayQueries.upsert.run(user.id, date, labelId);
+          }
+        })();
 
         return body;
       },
@@ -632,10 +628,13 @@ export function createApp({
           return { error: 'Calendar not found' };
         }
 
-        const calendar = calendarQueries.findByUserId.get(owner.id);
+        const days = calendarDayQueries.findByUserId.all(owner.id);
         const labels = labelQueries.findByUserId.all(owner.id);
 
-        const shifts: ShiftMap = calendar ? JSON.parse(calendar.shifts) : {};
+        const shifts: ShiftMap = {};
+        for (const day of days) {
+          shifts[day.date] = day.label_id;
+        }
         const labelResponse: LabelResponse[] = labels.map((l) => ({
           id: l.id,
           shortCode: l.short_code,
