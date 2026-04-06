@@ -245,7 +245,7 @@ export function createApp({
           return { error: 'Email already registered' };
         }
 
-        let result: { id: number } | undefined;
+        let result: { id: number } | null = null;
         try {
           result = userQueries.create.get(email, otcRecord.passwordHash);
         } catch {
