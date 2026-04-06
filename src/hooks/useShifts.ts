@@ -4,9 +4,9 @@ import { ShiftMap } from '../types';
 export function useShifts(authenticated: boolean, onSyncError?: (error: string) => void) {
   const [shifts, setShifts] = useState<ShiftMap>({});
   const [loading, setLoading] = useState(true);
-  const pendingSync = useRef<ShiftMap | null>(null);
-  const syncTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSyncedShifts = useRef<ShiftMap>({});
+  const pendingOps = useRef<Map<string, string | null>>(new Map());
+  const syncTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   // Fetch shifts from API
   const fetchShifts = useCallback(async () => {
@@ -35,95 +35,96 @@ export function useShifts(authenticated: boolean, onSyncError?: (error: string) 
     fetchShifts();
   }, [fetchShifts]);
 
-  // Debounced sync to backend
-  const syncToBackend = useCallback(
-    async (newShifts: ShiftMap) => {
-      const prev = lastSyncedShifts.current;
-
-      // Compute which dates changed
-      const allDates = new Set([...Object.keys(prev), ...Object.keys(newShifts)]);
-      const changed: Array<{ date: string; labelId: string | null }> = [];
-      for (const date of allDates) {
-        if (prev[date] !== newShifts[date]) {
-          changed.push({ date, labelId: newShifts[date] ?? null });
-        }
-      }
-
-      if (changed.length === 0) return;
-
+  const syncDate = useCallback(
+    async (date: string, labelId: string | null) => {
       try {
-        const results = await Promise.all(
-          changed.map(({ date, labelId }) => {
-            if (labelId === null) {
-              return fetch(`/api/calendar/${date}`, { method: 'DELETE' });
-            }
-            return fetch(`/api/calendar/${date}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ labelId }),
-            });
-          }),
-        );
+        const res =
+          labelId === null
+            ? await fetch(`/api/calendar/${date}`, { method: 'DELETE' })
+            : await fetch(`/api/calendar/${date}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ labelId }),
+              });
 
-        if (results.every((r) => r.ok || r.status === 204)) {
-          lastSyncedShifts.current = newShifts;
+        if (res.ok || res.status === 204) {
+          if (labelId === null) {
+            const next = { ...lastSyncedShifts.current };
+            delete next[date];
+            lastSyncedShifts.current = next;
+          } else {
+            lastSyncedShifts.current = { ...lastSyncedShifts.current, [date]: labelId };
+          }
         } else {
-          setShifts(lastSyncedShifts.current);
+          revertDate(date);
           onSyncError?.('Failed to save shifts');
         }
       } catch {
-        setShifts(lastSyncedShifts.current);
+        revertDate(date);
         onSyncError?.('Network error — shifts could not be saved');
       }
     },
     [onSyncError],
   );
 
-  // Queue sync with debouncing
-  const queueSync = useCallback(
-    (newShifts: ShiftMap) => {
-      pendingSync.current = newShifts;
-
-      if (syncTimeout.current) {
-        clearTimeout(syncTimeout.current);
+  const revertDate = (date: string) => {
+    setShifts((prev) => {
+      const next = { ...prev };
+      const synced = lastSyncedShifts.current[date];
+      if (synced === undefined) {
+        delete next[date];
+      } else {
+        next[date] = synced;
       }
+      return next;
+    });
+  };
 
-      syncTimeout.current = setTimeout(() => {
-        if (pendingSync.current) {
-          syncToBackend(pendingSync.current);
-          pendingSync.current = null;
-        }
-      }, 500); // Debounce 500ms
+  const queueSync = useCallback(
+    (date: string, labelId: string | null) => {
+      pendingOps.current.set(date, labelId);
+
+      const existing = syncTimers.current.get(date);
+      if (existing) clearTimeout(existing);
+
+      syncTimers.current.set(
+        date,
+        setTimeout(() => {
+          syncTimers.current.delete(date);
+          const op = pendingOps.current.get(date);
+          if (op !== undefined) {
+            pendingOps.current.delete(date);
+            syncDate(date, op);
+          }
+        }, 500),
+      );
     },
-    [syncToBackend],
+    [syncDate],
   );
 
   const setShift = (date: string, labelId: string) => {
-    setShifts((prev) => {
-      const next = { ...prev, [date]: labelId };
-      queueSync(next);
-      return next;
-    });
+    setShifts((prev) => ({ ...prev, [date]: labelId }));
+    queueSync(date, labelId);
   };
 
   const clearShift = (date: string) => {
     setShifts((prev) => {
       const next = { ...prev };
       delete next[date];
-      queueSync(next);
       return next;
     });
+    queueSync(date, null);
   };
 
   const getShift = (date: string): string | undefined => {
     return shifts[date];
   };
 
-  // Cleanup timeout on unmount
+  // Cleanup timers on unmount
   useEffect(() => {
     return () => {
-      if (syncTimeout.current) {
-        clearTimeout(syncTimeout.current);
+      for (const timer of syncTimers.current.values()) {
+        clearTimeout(timer);
       }
     };
   }, []);
