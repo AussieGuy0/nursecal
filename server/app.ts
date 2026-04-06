@@ -339,9 +339,10 @@ export function createApp({
       },
       (app) =>
         app
+          .derive(({ user }) => ({ user: user as { id: number; email: string } }))
           // Labels
           .get('/api/labels', ({ user }) => {
-            const labels = labelQueries.findByUserId.all(user!.id);
+            const labels = labelQueries.findByUserId.all(user.id);
             const response: LabelResponse[] = labels.map((label) => ({
               id: label.id,
               shortCode: label.short_code,
@@ -354,7 +355,7 @@ export function createApp({
             '/api/labels',
             ({ user, body, set }) => {
               const id = generateId();
-              labelQueries.create.run(id, user!.id, body.shortCode, body.name, body.color);
+              labelQueries.create.run(id, user.id, body.shortCode, body.name, body.color);
               const response: LabelResponse = {
                 id,
                 shortCode: body.shortCode,
@@ -376,7 +377,7 @@ export function createApp({
             '/api/labels/:id',
             ({ user, params, body, set }) => {
               const existing = labelQueries.findById.get(params.id);
-              if (!existing || existing.user_id !== user!.id) {
+              if (!existing || existing.user_id !== user.id) {
                 set.status = 404;
                 return { error: 'Label not found' };
               }
@@ -385,7 +386,7 @@ export function createApp({
               const name = body.name ?? existing.name;
               const color = body.color ?? existing.color;
 
-              labelQueries.update.run(shortCode, name, color, params.id, user!.id);
+              labelQueries.update.run(shortCode, name, color, params.id, user.id);
 
               const response: LabelResponse = { id: params.id, shortCode, name, color };
               return response;
@@ -403,11 +404,11 @@ export function createApp({
             '/api/labels/:id',
             ({ user, params, set }) => {
               const existing = labelQueries.findById.get(params.id);
-              if (!existing || existing.user_id !== user!.id) {
+              if (!existing || existing.user_id !== user.id) {
                 set.status = 404;
                 return { error: 'Label not found' };
               }
-              labelQueries.delete.run(params.id, user!.id);
+              labelQueries.delete.run(params.id, user.id);
               return { success: true };
             },
             {
@@ -416,7 +417,7 @@ export function createApp({
           )
           // Calendar
           .get('/api/calendar', ({ user }) => {
-            const days = calendarDayQueries.findByUserId.all(user!.id);
+            const days = calendarDayQueries.findByUserId.all(user.id);
             const shifts: ShiftMap = {};
             for (const day of days) {
               shifts[day.date] = day.label_id;
@@ -427,7 +428,7 @@ export function createApp({
             '/api/calendar',
             ({ user, body, set }) => {
               if (Object.keys(body).length > 0) {
-                const userLabels = labelQueries.findByUserId.all(user!.id);
+                const userLabels = labelQueries.findByUserId.all(user.id);
                 const validLabelIds = new Set(userLabels.map((l) => l.id));
                 const invalidId = Object.values(body).find((id) => !validLabelIds.has(id));
                 if (invalidId) {
@@ -437,9 +438,9 @@ export function createApp({
               }
 
               db.transaction(() => {
-                calendarDayQueries.deleteByUserId.run(user!.id);
+                calendarDayQueries.deleteByUserId.run(user.id);
                 for (const [date, labelId] of Object.entries(body)) {
-                  calendarDayQueries.upsert.run(user!.id, date, labelId);
+                  calendarDayQueries.upsert.run(user.id, date, labelId);
                 }
               })();
 
@@ -453,7 +454,7 @@ export function createApp({
           .post(
             '/api/shares',
             ({ user, body, set, request }) => {
-              if (body.email.toLowerCase() === user!.email.toLowerCase()) {
+              if (body.email.toLowerCase() === user.email.toLowerCase()) {
                 set.status = 400;
                 return { error: 'You cannot share with yourself' };
               }
@@ -469,7 +470,7 @@ export function createApp({
                 return { error: 'Too many attempts. Please try again later.' };
               }
 
-              const shareCount = shareQueries.countByOwnerId.get(user!.id);
+              const shareCount = shareQueries.countByOwnerId.get(user.id);
               if (shareCount && shareCount.count >= MAX_SHARES) {
                 set.status = 400;
                 return { error: 'Maximum number of shares reached' };
@@ -478,18 +479,18 @@ export function createApp({
               // Uniform response to prevent email enumeration
               const targetUser = userQueries.findByEmail.get(body.email);
               if (targetUser) {
-                const existing = shareQueries.hasAccess.get(user!.id, targetUser.id);
+                const existing = shareQueries.hasAccess.get(user.id, targetUser.id);
                 if (!existing) {
                   const id = generateId();
-                  shareQueries.create.run(id, user!.id, targetUser.id);
+                  shareQueries.create.run(id, user.id, targetUser.id);
 
                   // Send invite email (fire-and-forget, don't fail the share)
                   emailService
                     .sendEmail(
                       `NurseCal <noreply@${emailDomain}>`,
                       targetUser.email,
-                      `${user!.email} shared their NurseCal calendar with you`,
-                      `<p><strong>${user!.email}</strong> has shared their calendar with you on NurseCal.</p><p>Log in to view their shifts.</p>`,
+                      `${user.email} shared their NurseCal calendar with you`,
+                      `<p><strong>${user.email}</strong> has shared their calendar with you on NurseCal.</p><p>Log in to view their shifts.</p>`,
                     )
                     .catch((err) => console.error('[Email] Failed to send share invite:', err));
                 }
@@ -505,18 +506,18 @@ export function createApp({
             },
           )
           .get('/api/shares', ({ user }) => {
-            const shares = shareQueries.findByOwnerId.all(user!.id);
+            const shares = shareQueries.findByOwnerId.all(user.id);
             return shares.map((s) => ({ id: s.id, email: s.email }));
           })
           .delete(
             '/api/shares/:id',
             ({ user, params, set }) => {
               const share = shareQueries.findById.get(params.id);
-              if (!share || share.owner_id !== user!.id) {
+              if (!share || share.owner_id !== user.id) {
                 set.status = 404;
                 return { error: 'Share not found' };
               }
-              shareQueries.delete.run(params.id, user!.id);
+              shareQueries.delete.run(params.id, user.id);
               return { success: true };
             },
             {
@@ -524,7 +525,7 @@ export function createApp({
             },
           )
           .get('/api/shared-calendars', ({ user }) => {
-            const shared = shareQueries.findSharedWithUser.all(user!.id);
+            const shared = shareQueries.findSharedWithUser.all(user.id);
             return shared.map((s) => ({ email: s.email }));
           })
           .get(
@@ -539,7 +540,7 @@ export function createApp({
                 return { error: 'Calendar not found' };
               }
 
-              const access = shareQueries.hasAccess.get(owner.id, user!.id);
+              const access = shareQueries.hasAccess.get(owner.id, user.id);
               if (!access) {
                 set.status = 404;
                 return { error: 'Calendar not found' };
@@ -568,7 +569,7 @@ export function createApp({
           // Google Calendar
           .get('/api/google/auth', ({ user, set }) => {
             const state = generateOAuthState();
-            oauthStateQueries.insert.run(state, user!.id, Date.now() + 10 * 60 * 1000);
+            oauthStateQueries.insert.run(state, user.id, Date.now() + 10 * 60 * 1000);
 
             const url = buildAuthUrl(state);
             if (!url) {
@@ -588,7 +589,7 @@ export function createApp({
             }
 
             const storedState = oauthStateQueries.find.get(query.state);
-            if (!storedState || storedState.user_id !== user!.id || Date.now() > storedState.expires_at) {
+            if (!storedState || storedState.user_id !== user.id || Date.now() > storedState.expires_at) {
               set.status = 403;
               return { error: 'Invalid or expired OAuth state. Please try again.' };
             }
@@ -605,7 +606,7 @@ export function createApp({
             }
 
             googleTokenQueries.upsert.run(
-              user!.id,
+              user.id,
               tokens.access_token,
               tokens.refresh_token,
               Date.now() + tokens.expires_in * 1000,
@@ -615,31 +616,31 @@ export function createApp({
             return redirect('/');
           })
           .get('/api/google/status', ({ user }) => {
-            const record = googleTokenQueries.findByUserId.get(user!.id);
+            const record = googleTokenQueries.findByUserId.get(user.id);
             if (!record) return { connected: false, visible: false };
             return { connected: true, visible: record.visible === 1 };
           })
           .post('/api/google/disconnect', async ({ user }) => {
-            const record = googleTokenQueries.findByUserId.get(user!.id);
+            const record = googleTokenQueries.findByUserId.get(user.id);
             if (record) {
               // Revoke refresh token with Google (best-effort; also invalidates its access tokens)
               await revokeToken(record.refresh_token).catch(() => {});
             }
-            googleTokenQueries.delete.run(user!.id);
+            googleTokenQueries.delete.run(user.id);
             return { success: true };
           })
           .post('/api/google/toggle', ({ user, set }) => {
-            const record = googleTokenQueries.findByUserId.get(user!.id);
+            const record = googleTokenQueries.findByUserId.get(user.id);
             if (!record) {
               set.status = 400;
               return { error: 'Google Calendar not connected' };
             }
-            googleTokenQueries.toggleVisibility.run(user!.id);
-            const updated = googleTokenQueries.findByUserId.get(user!.id);
+            googleTokenQueries.toggleVisibility.run(user.id);
+            const updated = googleTokenQueries.findByUserId.get(user.id);
             return { visible: updated!.visible === 1 };
           })
           .get('/api/google/events', async ({ query, user, set }) => {
-            const record = googleTokenQueries.findByUserId.get(user!.id);
+            const record = googleTokenQueries.findByUserId.get(user.id);
             if (!record) {
               set.status = 400;
               return { error: 'Google Calendar not connected' };
@@ -651,7 +652,7 @@ export function createApp({
               const refreshResult = await refreshAccessToken(record.refresh_token);
               if (!refreshResult.ok) {
                 if (refreshResult.permanent) {
-                  googleTokenQueries.delete.run(user!.id);
+                  googleTokenQueries.delete.run(user.id);
                   set.status = 401;
                   return { error: 'Google token expired. Please reconnect.' };
                 }
@@ -662,7 +663,7 @@ export function createApp({
               googleTokenQueries.updateAccessToken.run(
                 accessToken,
                 Date.now() + refreshResult.tokens.expires_in * 1000,
-                user!.id,
+                user.id,
               );
             }
 
