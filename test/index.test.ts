@@ -356,6 +356,126 @@ describe('Calendar', () => {
     );
     expect(res.status).toBe(200);
   });
+
+  test('PUT /api/calendar/:date sets a single day', async () => {
+    const res = await app.handle(
+      new Request(`${BASE}/api/calendar/2025-06-10`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Cookie: cookie },
+        body: JSON.stringify({ labelId: labelId1 }),
+      }),
+    );
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data).toEqual({ date: '2025-06-10', labelId: labelId1 });
+
+    const getRes = await app.handle(new Request(`${BASE}/api/calendar`, { headers: { Cookie: cookie } }));
+    const calendar = await getRes.json();
+    expect(calendar['2025-06-10']).toBe(labelId1);
+  });
+
+  test('PUT /api/calendar/:date updates an existing day without affecting others', async () => {
+    // Seed two days
+    await app.handle(
+      new Request(`${BASE}/api/calendar`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Cookie: cookie },
+        body: JSON.stringify({ '2025-07-01': labelId1, '2025-07-02': labelId2 }),
+      }),
+    );
+
+    // Update only the first day
+    await app.handle(
+      new Request(`${BASE}/api/calendar/2025-07-01`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Cookie: cookie },
+        body: JSON.stringify({ labelId: labelId3 }),
+      }),
+    );
+
+    const res = await app.handle(new Request(`${BASE}/api/calendar`, { headers: { Cookie: cookie } }));
+    const data = await res.json();
+    expect(data['2025-07-01']).toBe(labelId3);
+    expect(data['2025-07-02']).toBe(labelId2);
+  });
+
+  test('PUT /api/calendar/:date rejects invalid label ID', async () => {
+    const res = await app.handle(
+      new Request(`${BASE}/api/calendar/2025-06-11`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Cookie: cookie },
+        body: JSON.stringify({ labelId: 'nonexistent' }),
+      }),
+    );
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toBe('Invalid label ID');
+  });
+
+  test('PUT /api/calendar/:date rejects invalid date format', async () => {
+    const res = await app.handle(
+      new Request(`${BASE}/api/calendar/not-a-date`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Cookie: cookie },
+        body: JSON.stringify({ labelId: labelId1 }),
+      }),
+    );
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toBe('Invalid date format, expected YYYY-MM-DD');
+  });
+
+  test('DELETE /api/calendar/:date removes a single day', async () => {
+    // Seed two days
+    await app.handle(
+      new Request(`${BASE}/api/calendar`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Cookie: cookie },
+        body: JSON.stringify({ '2025-08-01': labelId1, '2025-08-02': labelId2 }),
+      }),
+    );
+
+    const delRes = await app.handle(
+      new Request(`${BASE}/api/calendar/2025-08-01`, {
+        method: 'DELETE',
+        headers: { Cookie: cookie },
+      }),
+    );
+    expect(delRes.status).toBe(204);
+
+    const res = await app.handle(new Request(`${BASE}/api/calendar`, { headers: { Cookie: cookie } }));
+    const data = await res.json();
+    expect(data['2025-08-01']).toBeUndefined();
+    expect(data['2025-08-02']).toBe(labelId2);
+  });
+
+  test('DELETE /api/calendar/:date rejects invalid date format', async () => {
+    const res = await app.handle(
+      new Request(`${BASE}/api/calendar/not-a-date`, {
+        method: 'DELETE',
+        headers: { Cookie: cookie },
+      }),
+    );
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toBe('Invalid date format, expected YYYY-MM-DD');
+  });
+
+  test('PUT /api/calendar/:date returns 401 when unauthenticated', async () => {
+    const res = await app.handle(
+      new Request(`${BASE}/api/calendar/2025-06-10`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ labelId: labelId1 }),
+      }),
+    );
+    expect(res.status).toBe(401);
+  });
+
+  test('DELETE /api/calendar/:date returns 401 when unauthenticated', async () => {
+    const res = await app.handle(new Request(`${BASE}/api/calendar/2025-06-10`, { method: 'DELETE' }));
+    expect(res.status).toBe(401);
+  });
 });
 
 // ─── Sharing ──────────────────────────────────────────────────────────────────
