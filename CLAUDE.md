@@ -32,11 +32,16 @@ bun run format           # Run Prettier on all files
 
 ## Pre-Push Checklist
 
-Always run Prettier before pushing:
+Always run these before committing or pushing. Fix any failures — do not commit with a broken build:
 
 ```bash
-bun run format
+bun install          # ensure dependencies are installed
+bun run format       # format all files
+bun test             # all tests must pass
+bun run build        # build must succeed
 ```
+
+If tests are failing, fix them. Never explain away failures as "pre-existing" — own the build.
 
 ## Architecture
 

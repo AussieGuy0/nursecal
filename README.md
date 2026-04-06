@@ -57,6 +57,8 @@ Then open http://localhost:3123
 | `GOOGLE_CLIENT_ID`     | No       | OAuth 2.0 client ID for Google Calendar integration.                                 |
 | `GOOGLE_CLIENT_SECRET` | No       | OAuth 2.0 client secret.                                                             |
 | `GOOGLE_REDIRECT_URI`  | No       | OAuth callback URL, e.g. `https://yourdomain.com/api/google/callback`.               |
+| `SENTRY_DSN`           | No       | Sentry DSN for server-side error reporting. Omit to disable.                         |
+| `VITE_SENTRY_DSN`      | No       | Sentry DSN for client-side error reporting. Set at build time. Omit to disable.      |
 
 ### Email (SMTP) setup
 

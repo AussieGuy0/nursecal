@@ -3,7 +3,7 @@ import { Elysia, t } from 'elysia';
 import { jwt } from '@elysiajs/jwt';
 import { openapi, fromTypes } from '@elysiajs/openapi';
 import { createDB, generateId } from './db';
-import { createOTCService, generateOTC, maskEmail } from './otc';
+import { createOTCService, generateOTC } from './otc';
 import { DEFAULT_LABELS, type JWTPayload, type LabelResponse, type ShiftMap } from './types';
 import {
   buildAuthUrl,
@@ -14,10 +14,7 @@ import {
   fetchAllCalendarEvents,
 } from './google';
 import type { EmailService } from './email';
-
-// Rate limiting configuration
-const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
-const RATE_LIMIT_MAX_ATTEMPTS = 5;
+import { createInMemoryRateLimiter } from './rateLimit';
 const MAX_SHARES = 50;
 
 // Password hashing using Bun's native crypto
@@ -47,36 +44,24 @@ export function createApp({
     createDB(dbPath);
   const { storeOTC, getOTC, deleteOTC } = createOTCService(db);
 
-  // In-memory rate limit store: IP -> { count, resetTime }
-  const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+  const rateLimiter = createInMemoryRateLimiter({ windowMs: 15 * 60 * 1000, maxAttempts: 5 });
 
-  function checkRateLimit(ip: string): { allowed: boolean; retryAfterSeconds?: number } {
-    const now = Date.now();
-    const record = rateLimitStore.get(ip);
-
-    if (!record || now > record.resetTime) {
-      rateLimitStore.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
-      return { allowed: true };
-    }
-
-    if (record.count >= RATE_LIMIT_MAX_ATTEMPTS) {
-      const retryAfterSeconds = Math.ceil((record.resetTime - now) / 1000);
-      return { allowed: false, retryAfterSeconds };
-    }
-
-    record.count++;
-    return { allowed: true };
-  }
+  // Per-email OTC failed attempt tracking: email -> failedCount
+  // Cleared on successful verification or when OTC is deleted.
+  // Locked out emails must re-initiate registration to get a fresh OTC.
+  const OTC_MAX_FAILED_ATTEMPTS = 5;
+  const otcFailedAttempts = new Map<string, number>();
 
   // Cleanup old entries periodically
   setInterval(() => {
-    const now = Date.now();
-    for (const [ip, record] of rateLimitStore) {
-      if (now > record.resetTime) {
-        rateLimitStore.delete(ip);
+    rateLimiter.cleanup();
+    oauthStateQueries.deleteExpired.run(Date.now());
+    // Remove OTC attempt counters for emails that no longer have a pending OTC
+    for (const email of otcFailedAttempts.keys()) {
+      if (!getOTC(email)) {
+        otcFailedAttempts.delete(email);
       }
     }
-    oauthStateQueries.deleteExpired.run(now);
   }, 60 * 1000);
 
   const app = new Elysia()
@@ -139,7 +124,7 @@ export function createApp({
           request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
           request.headers.get('x-real-ip') ||
           'unknown';
-        const rateLimit = checkRateLimit(`register:${ip}`);
+        const rateLimit = rateLimiter.check(`register:${ip}`);
         if (!rateLimit.allowed) {
           set.status = 429;
           set.headers['Retry-After'] = String(rateLimit.retryAfterSeconds);
@@ -189,7 +174,7 @@ export function createApp({
           request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
           request.headers.get('x-real-ip') ||
           'unknown';
-        const rateLimit = checkRateLimit(`register-verify:${ip}`);
+        const rateLimit = rateLimiter.check(`register-verify:${ip}`);
         if (!rateLimit.allowed) {
           set.status = 429;
           set.headers['Retry-After'] = String(rateLimit.retryAfterSeconds);
@@ -206,11 +191,21 @@ export function createApp({
 
         if (Date.now() > otcRecord.expiresAt) {
           deleteOTC(email);
+          otcFailedAttempts.delete(email);
           set.status = 400;
           return { error: 'Verification code expired. Please start over.' };
         }
 
+        const failedAttempts = otcFailedAttempts.get(email) ?? 0;
+        if (failedAttempts >= OTC_MAX_FAILED_ATTEMPTS) {
+          deleteOTC(email);
+          otcFailedAttempts.delete(email);
+          set.status = 429;
+          return { error: 'Too many incorrect attempts. Please start registration over.' };
+        }
+
         if (otcRecord.code !== code) {
+          otcFailedAttempts.set(email, failedAttempts + 1);
           set.status = 400;
           return { error: 'Invalid verification code' };
         }
@@ -223,7 +218,14 @@ export function createApp({
           return { error: 'Email already registered' };
         }
 
-        const result = userQueries.create.get(email, otcRecord.passwordHash);
+        let result: { id: number } | null = null;
+        try {
+          result = userQueries.create.get(email, otcRecord.passwordHash);
+        } catch {
+          deleteOTC(email);
+          set.status = 409;
+          return { error: 'Email already registered' };
+        }
         if (!result) {
           set.status = 500;
           return { error: 'Failed to create user' };
@@ -231,6 +233,7 @@ export function createApp({
 
         const userId = result.id;
         deleteOTC(email);
+        otcFailedAttempts.delete(email);
 
         // Seed default labels for the new user
         for (const label of DEFAULT_LABELS) {
@@ -263,7 +266,7 @@ export function createApp({
           request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
           request.headers.get('x-real-ip') ||
           'unknown';
-        const rateLimit = checkRateLimit(`login:${ip}`);
+        const rateLimit = rateLimiter.check(`login:${ip}`);
         if (!rateLimit.allowed) {
           set.status = 429;
           set.headers['Retry-After'] = String(rateLimit.retryAfterSeconds);
@@ -424,6 +427,11 @@ export function createApp({
         .put(
           '/api/calendar',
           ({ user, body, set }) => {
+            if (Object.keys(body).length > 366) {
+              set.status = 400;
+              return { error: 'Too many calendar entries' };
+            }
+
             if (Object.keys(body).length > 0) {
               const userLabels = labelQueries.findByUserId.all(user.id);
               const validLabelIds = new Set(userLabels.map((l) => l.id));
@@ -460,7 +468,7 @@ export function createApp({
               request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
               request.headers.get('x-real-ip') ||
               'unknown';
-            const rateLimit = checkRateLimit(`share:${ip}`);
+            const rateLimit = rateLimiter.check(`share:${ip}`);
             if (!rateLimit.allowed) {
               set.status = 429;
               set.headers['Retry-After'] = String(rateLimit.retryAfterSeconds);
