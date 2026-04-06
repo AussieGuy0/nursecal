@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { Database } from 'bun:sqlite';
 import { tmpdir } from 'os';
 import { join, dirname } from 'path';
-import { readFileSync, unlinkSync, writeFileSync } from 'fs';
+import { mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'fs';
 import { migrate, MIGRATION_PATTERN } from '../server/migrate';
 
 const SCHEMA_PATH = join(dirname(import.meta.dir), 'server', 'schema.sql');
@@ -110,6 +110,18 @@ describe('migrate', () => {
       console.log(`Generated ${SCHEMA_PATH}`);
     } else {
       expect(generated).toBe(existing);
+    }
+  });
+
+  test('rejects duplicate migration prefixes', () => {
+    const dir = join(tmpdir(), `nursecal-migrations-${Date.now()}`);
+    mkdirSync(dir);
+    writeFileSync(join(dir, '001_initial.sql'), 'CREATE TABLE a (id INTEGER PRIMARY KEY);');
+    writeFileSync(join(dir, '001_duplicate.sql'), 'CREATE TABLE b (id INTEGER PRIMARY KEY);');
+    try {
+      expect(() => migrate(db, dir)).toThrow('Duplicate migration prefixes: 001');
+    } finally {
+      rmSync(dir, { recursive: true });
     }
   });
 
