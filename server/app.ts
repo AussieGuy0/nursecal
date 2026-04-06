@@ -501,6 +501,50 @@ export function createApp({
         body: t.Record(t.String(), t.String()),
       },
     )
+    .put(
+      '/api/calendar/:date',
+      ({ user, params, body, set }) => {
+        if (!user) {
+          set.status = 401;
+          return { error: 'Unauthorized' };
+        }
+
+        const { date } = params;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+          set.status = 400;
+          return { error: 'Invalid date format, expected YYYY-MM-DD' };
+        }
+
+        const userLabels = labelQueries.findByUserId.all(user.id);
+        const validLabelIds = new Set(userLabels.map((l) => l.id));
+        if (!validLabelIds.has(body.labelId)) {
+          set.status = 400;
+          return { error: 'Invalid label ID' };
+        }
+
+        calendarDayQueries.upsert.run(user.id, date, body.labelId);
+        return { date, labelId: body.labelId };
+      },
+      {
+        body: t.Object({ labelId: t.String() }),
+      },
+    )
+    .delete('/api/calendar/:date', ({ user, params, set }) => {
+      if (!user) {
+        set.status = 401;
+        return { error: 'Unauthorized' };
+      }
+
+      const { date } = params;
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        set.status = 400;
+        return { error: 'Invalid date format, expected YYYY-MM-DD' };
+      }
+
+      calendarDayQueries.delete.run(user.id, date);
+      set.status = 204;
+      return;
+    })
     // Sharing routes
     .post(
       '/api/shares',

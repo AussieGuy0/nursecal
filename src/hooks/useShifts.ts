@@ -38,13 +38,34 @@ export function useShifts(authenticated: boolean, onSyncError?: (error: string) 
   // Debounced sync to backend
   const syncToBackend = useCallback(
     async (newShifts: ShiftMap) => {
+      const prev = lastSyncedShifts.current;
+
+      // Compute which dates changed
+      const allDates = new Set([...Object.keys(prev), ...Object.keys(newShifts)]);
+      const changed: Array<{ date: string; labelId: string | null }> = [];
+      for (const date of allDates) {
+        if (prev[date] !== newShifts[date]) {
+          changed.push({ date, labelId: newShifts[date] ?? null });
+        }
+      }
+
+      if (changed.length === 0) return;
+
       try {
-        const res = await fetch('/api/calendar', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newShifts),
-        });
-        if (res.ok) {
+        const results = await Promise.all(
+          changed.map(({ date, labelId }) => {
+            if (labelId === null) {
+              return fetch(`/api/calendar/${date}`, { method: 'DELETE' });
+            }
+            return fetch(`/api/calendar/${date}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ labelId }),
+            });
+          }),
+        );
+
+        if (results.every((r) => r.ok || r.status === 204)) {
           lastSyncedShifts.current = newShifts;
         } else {
           setShifts(lastSyncedShifts.current);
