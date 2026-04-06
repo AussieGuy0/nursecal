@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { Database } from 'bun:sqlite';
 import { tmpdir } from 'os';
 import { join, dirname } from 'path';
-import { readFileSync, unlinkSync, writeFileSync } from 'fs';
+import { mkdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'fs';
 import { migrate, MIGRATION_PATTERN } from '../server/migrate';
 
 const SCHEMA_PATH = join(dirname(import.meta.dir), 'server', 'schema.sql');
@@ -39,7 +39,7 @@ describe('migrate', () => {
     const tables = getTables(db);
     expect(tables).toContain('users');
     expect(tables).toContain('labels');
-    expect(tables).toContain('calendars');
+    expect(tables).toContain('calendar_day');
     expect(tables).toContain('otc');
     expect(tables).toContain('oauth_states');
     expect(tables).toContain('google_tokens');
@@ -79,8 +79,8 @@ describe('migrate', () => {
     // Insert a label with foreign key
     db.run("INSERT INTO labels (id, user_id, short_code, name, color) VALUES ('l1', 1, 'E', 'Early', '#ff0000')");
 
-    // Insert calendar data
-    db.run('INSERT INTO calendars (user_id, shifts) VALUES (1, \'{"2025-01-01": "E"}\')');
+    // Insert calendar day data
+    db.run("INSERT INTO calendar_day (user_id, date, label_id) VALUES (1, '2025-01-01', 'l1')");
 
     // Verify foreign key enforcement
     expect(() => {
@@ -110,6 +110,18 @@ describe('migrate', () => {
       console.log(`Generated ${SCHEMA_PATH}`);
     } else {
       expect(generated).toBe(existing);
+    }
+  });
+
+  test('rejects duplicate migration prefixes', () => {
+    const dir = join(tmpdir(), `nursecal-migrations-${Date.now()}`);
+    mkdirSync(dir);
+    writeFileSync(join(dir, '001_initial.sql'), 'CREATE TABLE a (id INTEGER PRIMARY KEY);');
+    writeFileSync(join(dir, '001_duplicate.sql'), 'CREATE TABLE b (id INTEGER PRIMARY KEY);');
+    try {
+      expect(() => migrate(db, dir)).toThrow('Duplicate migration prefixes: 001');
+    } finally {
+      rmSync(dir, { recursive: true });
     }
   });
 

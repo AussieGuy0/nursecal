@@ -4,7 +4,7 @@ import { join } from 'path';
 
 export const MIGRATION_PATTERN = /^\d{3}_\w+\.sql$/;
 
-export function migrate(db: Database) {
+export function migrate(db: Database, migrationsDir?: string) {
   db.run(`
     CREATE TABLE IF NOT EXISTS _migrations (
       name TEXT PRIMARY KEY,
@@ -12,7 +12,7 @@ export function migrate(db: Database) {
     )
   `);
 
-  const migrationsDir = join(import.meta.dir, 'migrations');
+  migrationsDir ??= join(import.meta.dir, 'migrations');
 
   let entries: string[];
   try {
@@ -28,6 +28,12 @@ export function migrate(db: Database) {
 
   const files = entries.filter((f) => MIGRATION_PATTERN.test(f)).sort();
   if (files.length === 0) return;
+
+  const prefixes = files.map((f) => f.slice(0, 3));
+  const duplicates = prefixes.filter((p, i) => prefixes.indexOf(p) !== i);
+  if (duplicates.length > 0) {
+    throw new Error(`Duplicate migration prefixes: ${[...new Set(duplicates)].join(', ')}`);
+  }
 
   const applied = new Set(
     db

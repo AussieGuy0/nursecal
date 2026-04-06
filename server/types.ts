@@ -15,9 +15,11 @@ export interface Label {
   color: string;
 }
 
-export interface Calendar {
+export interface CalendarDay {
+  id: number;
   user_id: number;
-  shifts: string; // JSON string of ShiftMap
+  date: string;
+  label_id: string;
 }
 
 // Frontend-compatible types
