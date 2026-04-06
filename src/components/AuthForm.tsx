@@ -101,7 +101,7 @@ export function AuthForm({ onLogin, onRegisterInitiate, onRegisterVerify }: Auth
           {pendingVerification && (
             <div>
               <p className="text-sm text-gray-600 mb-4">
-                A verification code has been sent. Check your server logs for the code.
+                A verification code has been sent to your email. Check your inbox.
               </p>
               <label htmlFor="code" className="block text-sm font-medium text-gray-700 mb-1">
                 Verification Code

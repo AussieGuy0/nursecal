@@ -3,7 +3,7 @@ import { Elysia, t } from 'elysia';
 import { jwt } from '@elysiajs/jwt';
 import { openapi, fromTypes } from '@elysiajs/openapi';
 import { createDB, generateId } from './db';
-import { createOTCService, generateOTC, maskEmail } from './otc';
+import { createOTCService, generateOTC } from './otc';
 import { DEFAULT_LABELS, type JWTPayload, type LabelResponse, type ShiftMap } from './types';
 import {
   buildAuthUrl,
@@ -50,6 +50,12 @@ export function createApp({
   // In-memory rate limit store: IP -> { count, resetTime }
   const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
 
+  // Per-email OTC failed attempt tracking: email -> failedCount
+  // Cleared on successful verification or when OTC is deleted.
+  // Locked out emails must re-initiate registration to get a fresh OTC.
+  const OTC_MAX_FAILED_ATTEMPTS = 5;
+  const otcFailedAttempts = new Map<string, number>();
+
   function checkRateLimit(ip: string): { allowed: boolean; retryAfterSeconds?: number } {
     const now = Date.now();
     const record = rateLimitStore.get(ip);
@@ -77,6 +83,12 @@ export function createApp({
       }
     }
     oauthStateQueries.deleteExpired.run(now);
+    // Remove OTC attempt counters for emails that no longer have a pending OTC
+    for (const email of otcFailedAttempts.keys()) {
+      if (!getOTC(email)) {
+        otcFailedAttempts.delete(email);
+      }
+    }
   }, 60 * 1000);
 
   const app = new Elysia()
@@ -206,11 +218,21 @@ export function createApp({
 
         if (Date.now() > otcRecord.expiresAt) {
           deleteOTC(email);
+          otcFailedAttempts.delete(email);
           set.status = 400;
           return { error: 'Verification code expired. Please start over.' };
         }
 
+        const failedAttempts = otcFailedAttempts.get(email) ?? 0;
+        if (failedAttempts >= OTC_MAX_FAILED_ATTEMPTS) {
+          deleteOTC(email);
+          otcFailedAttempts.delete(email);
+          set.status = 429;
+          return { error: 'Too many incorrect attempts. Please start registration over.' };
+        }
+
         if (otcRecord.code !== code) {
+          otcFailedAttempts.set(email, failedAttempts + 1);
           set.status = 400;
           return { error: 'Invalid verification code' };
         }
@@ -223,7 +245,14 @@ export function createApp({
           return { error: 'Email already registered' };
         }
 
-        const result = userQueries.create.get(email, otcRecord.passwordHash);
+        let result: { id: number } | undefined;
+        try {
+          result = userQueries.create.get(email, otcRecord.passwordHash);
+        } catch {
+          deleteOTC(email);
+          set.status = 409;
+          return { error: 'Email already registered' };
+        }
         if (!result) {
           set.status = 500;
           return { error: 'Failed to create user' };
@@ -231,6 +260,7 @@ export function createApp({
 
         const userId = result.id;
         deleteOTC(email);
+        otcFailedAttempts.delete(email);
 
         // Seed default labels for the new user
         for (const label of DEFAULT_LABELS) {
@@ -424,6 +454,11 @@ export function createApp({
         .put(
           '/api/calendar',
           ({ user, body, set }) => {
+            if (Object.keys(body).length > 366) {
+              set.status = 400;
+              return { error: 'Too many calendar entries' };
+            }
+
             if (Object.keys(body).length > 0) {
               const userLabels = labelQueries.findByUserId.all(user.id);
               const validLabelIds = new Set(userLabels.map((l) => l.id));

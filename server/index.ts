@@ -3,7 +3,7 @@ import { createApp } from './app';
 import { createSmtpEmailService, createLoggingEmailService, type EmailService } from './email';
 
 Sentry.init({
-  dsn: 'https://b5d29bc60300fac1d1fa0f37287f1685@o4510803064520704.ingest.us.sentry.io/4510803064782848',
+  dsn: process.env.SENTRY_DSN,
   environment: process.env.NODE_ENV === 'production' ? 'production' : 'development',
 });
 
