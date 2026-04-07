@@ -25,7 +25,7 @@ export function useShifts(authenticated: boolean, onSyncError?: (error: string) 
         lastSyncedShifts.current = data;
       }
     } catch {
-      console.error('Failed to fetch shifts');
+      onSyncError?.('Failed to load shifts');
     } finally {
       setLoading(false);
     }

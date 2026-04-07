@@ -18,6 +18,7 @@ interface CalendarProps {
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+// Minimum horizontal px delta to count as an intentional swipe
 const SWIPE_THRESHOLD = 50;
 
 type SlideDirection = 'left' | 'right';

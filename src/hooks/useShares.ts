@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Share, SharedCalendar, ActionResult } from '../types';
 
-export function useShares(authenticated: boolean) {
+export function useShares(authenticated: boolean, onFetchError?: (error: string) => void) {
   const [shares, setShares] = useState<Share[]>([]);
   const [sharedWithMe, setSharedWithMe] = useState<SharedCalendar[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,11 +24,11 @@ export function useShares(authenticated: boolean) {
         setSharedWithMe(await sharedRes.json());
       }
     } catch {
-      console.error('Failed to fetch shares');
+      onFetchError?.('Network error — could not load shares');
     } finally {
       setLoading(false);
     }
-  }, [authenticated]);
+  }, [authenticated, onFetchError]);
 
   useEffect(() => {
     fetchShares();

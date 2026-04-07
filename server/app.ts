@@ -15,7 +15,10 @@ import {
 } from './google';
 import type { EmailService } from './email';
 import { createInMemoryRateLimiter } from './rateLimit';
+// Maximum shares a single user can create (prevents abuse)
 const MAX_SHARES = 50;
+// Maximum calendar entries per PUT — one per day for a full leap year
+const MAX_CALENDAR_ENTRIES = 366;
 
 // Password hashing using Bun's native crypto
 async function hashPassword(password: string): Promise<string> {
@@ -427,7 +430,7 @@ export function createApp({
         .put(
           '/api/calendar',
           ({ user, body, set }) => {
-            if (Object.keys(body).length > 366) {
+            if (Object.keys(body).length > MAX_CALENDAR_ENTRIES) {
               set.status = 400;
               return { error: 'Too many calendar entries' };
             }
@@ -629,7 +632,9 @@ export function createApp({
           const record = googleTokenQueries.findByUserId.get(user.id);
           if (record) {
             // Revoke refresh token with Google (best-effort; also invalidates its access tokens)
-            await revokeToken(record.refresh_token).catch(() => {});
+            await revokeToken(record.refresh_token).catch((err) =>
+              console.error('[Google] Failed to revoke token:', err),
+            );
           }
           googleTokenQueries.delete.run(user.id);
           return { success: true };
