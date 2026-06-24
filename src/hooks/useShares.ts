@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Share, SharedCalendar, ActionResult } from '../types';
+import { apiFetch } from '../utils/api';
 
 export function useShares(authenticated: boolean) {
   const [shares, setShares] = useState<Share[]>([]);
@@ -15,7 +16,7 @@ export function useShares(authenticated: boolean) {
     }
 
     try {
-      const [sharesRes, sharedRes] = await Promise.all([fetch('/api/shares'), fetch('/api/shared-calendars')]);
+      const [sharesRes, sharedRes] = await Promise.all([apiFetch('/api/shares'), apiFetch('/api/shared-calendars')]);
 
       if (sharesRes.ok) {
         setShares(await sharesRes.json());
@@ -36,7 +37,7 @@ export function useShares(authenticated: boolean) {
 
   const addShare = async (email: string): Promise<ActionResult> => {
     try {
-      const res = await fetch('/api/shares', {
+      const res = await apiFetch('/api/shares', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -54,7 +55,7 @@ export function useShares(authenticated: boolean) {
 
   const removeShare = async (id: string): Promise<ActionResult> => {
     try {
-      const res = await fetch(`/api/shares/${id}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/shares/${id}`, { method: 'DELETE' });
       if (res.ok) {
         setShares((prev) => prev.filter((s) => s.id !== id));
         return { success: true };

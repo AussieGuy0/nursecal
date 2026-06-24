@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Label, ActionResult } from '../types';
+import { apiFetch } from '../utils/api';
 
 export function useLabels(authenticated: boolean, onFetchError?: (error: string) => void) {
   const [labels, setLabels] = useState<Label[]>([]);
@@ -14,7 +15,7 @@ export function useLabels(authenticated: boolean, onFetchError?: (error: string)
     }
 
     try {
-      const res = await fetch('/api/labels');
+      const res = await apiFetch('/api/labels');
       if (res.ok) {
         const data = await res.json();
         setLabels(data);
@@ -34,7 +35,7 @@ export function useLabels(authenticated: boolean, onFetchError?: (error: string)
 
   const addLabel = async (shortCode: string, name: string, color: string): Promise<ActionResult> => {
     try {
-      const res = await fetch('/api/labels', {
+      const res = await apiFetch('/api/labels', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ shortCode, name, color }),
@@ -53,7 +54,7 @@ export function useLabels(authenticated: boolean, onFetchError?: (error: string)
 
   const updateLabel = async (id: string, updates: Partial<Omit<Label, 'id'>>): Promise<ActionResult> => {
     try {
-      const res = await fetch(`/api/labels/${id}`, {
+      const res = await apiFetch(`/api/labels/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates),
@@ -72,7 +73,7 @@ export function useLabels(authenticated: boolean, onFetchError?: (error: string)
 
   const deleteLabel = async (id: string): Promise<ActionResult> => {
     try {
-      const res = await fetch(`/api/labels/${id}`, {
+      const res = await apiFetch(`/api/labels/${id}`, {
         method: 'DELETE',
       });
       if (res.ok) {

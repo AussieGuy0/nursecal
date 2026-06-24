@@ -96,8 +96,11 @@ export default function App() {
   // Show loading spinner while checking auth
   if (authLoading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gray-100">
+      <div className="h-screen flex flex-col items-center justify-center gap-4 bg-gray-100">
         <div className="text-gray-600">Loading...</div>
+        <button onClick={() => window.location.reload()} className="text-sm text-blue-500 underline">
+          Taking too long? Tap to reload
+        </button>
       </div>
     );
   }

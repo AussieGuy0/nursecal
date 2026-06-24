@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { GoogleCalendarEvent, ActionResult } from '../types';
+import { apiFetch } from '../utils/api';
 
 interface GoogleCalendarState {
   connected: boolean;
@@ -23,7 +24,7 @@ export function useGoogleCalendar(authenticated: boolean, year: number, month: n
     }
 
     try {
-      const res = await fetch('/api/google/status');
+      const res = await apiFetch('/api/google/status');
       if (res.ok) {
         const data = await res.json();
         setState((prev) => ({
@@ -54,7 +55,7 @@ export function useGoogleCalendar(authenticated: boolean, year: number, month: n
     const timeMax = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
 
     try {
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/google/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`,
       );
       if (res.ok) {
@@ -78,7 +79,7 @@ export function useGoogleCalendar(authenticated: boolean, year: number, month: n
 
   const connect = useCallback(async (): Promise<ActionResult> => {
     try {
-      const res = await fetch('/api/google/auth');
+      const res = await apiFetch('/api/google/auth');
       if (res.ok) {
         const data = await res.json();
         window.location.href = data.url;
@@ -92,7 +93,7 @@ export function useGoogleCalendar(authenticated: boolean, year: number, month: n
 
   const disconnect = useCallback(async (): Promise<ActionResult> => {
     try {
-      const res = await fetch('/api/google/disconnect', { method: 'POST' });
+      const res = await apiFetch('/api/google/disconnect', { method: 'POST' });
       if (res.ok) {
         setState({ connected: false, visible: false, events: [], loading: false });
         return { success: true };
@@ -105,7 +106,7 @@ export function useGoogleCalendar(authenticated: boolean, year: number, month: n
 
   const toggleVisibility = useCallback(async (): Promise<ActionResult> => {
     try {
-      const res = await fetch('/api/google/toggle', { method: 'POST' });
+      const res = await apiFetch('/api/google/toggle', { method: 'POST' });
       if (res.ok) {
         const data = await res.json();
         setState((prev) => ({ ...prev, visible: data.visible }));
