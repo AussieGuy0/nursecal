@@ -14,8 +14,10 @@ export function useAuth() {
   });
 
   const checkAuth = useCallback(async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
     try {
-      const res = await fetch('/api/auth/me');
+      const res = await fetch('/api/auth/me', { signal: controller.signal });
       const data = await res.json();
       setAuthState({
         authenticated: data.authenticated,
@@ -28,6 +30,8 @@ export function useAuth() {
         email: null,
         loading: false,
       });
+    } finally {
+      clearTimeout(timeoutId);
     }
   }, []);
 
