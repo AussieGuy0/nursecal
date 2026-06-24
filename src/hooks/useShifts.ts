@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ShiftMap } from '../types';
+import { apiFetch } from '../utils/api';
 
 export function useShifts(authenticated: boolean, onSyncError?: (error: string) => void) {
   const [shifts, setShifts] = useState<ShiftMap>({});
@@ -18,7 +19,7 @@ export function useShifts(authenticated: boolean, onSyncError?: (error: string) 
     }
 
     try {
-      const res = await fetch('/api/calendar');
+      const res = await apiFetch('/api/calendar');
       if (res.ok) {
         const data = await res.json();
         setShifts(data);
@@ -39,7 +40,7 @@ export function useShifts(authenticated: boolean, onSyncError?: (error: string) 
   const syncToBackend = useCallback(
     async (newShifts: ShiftMap) => {
       try {
-        const res = await fetch('/api/calendar', {
+        const res = await apiFetch('/api/calendar', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(newShifts),

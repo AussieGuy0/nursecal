@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { apiFetch } from '../utils/api';
 
 interface AuthState {
   authenticated: boolean;
@@ -14,10 +15,8 @@ export function useAuth() {
   });
 
   const checkAuth = useCallback(async () => {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
     try {
-      const res = await fetch('/api/auth/me', { signal: controller.signal });
+      const res = await apiFetch('/api/auth/me');
       const data = await res.json();
       setAuthState({
         authenticated: data.authenticated,
@@ -30,8 +29,6 @@ export function useAuth() {
         email: null,
         loading: false,
       });
-    } finally {
-      clearTimeout(timeoutId);
     }
   }, []);
 
@@ -41,7 +38,7 @@ export function useAuth() {
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -65,7 +62,7 @@ export function useAuth() {
 
   const registerInitiate = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const res = await fetch('/api/auth/register/initiate', {
+      const res = await apiFetch('/api/auth/register/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -84,7 +81,7 @@ export function useAuth() {
 
   const registerVerify = async (email: string, code: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const res = await fetch('/api/auth/register/verify', {
+      const res = await apiFetch('/api/auth/register/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, code }),
@@ -108,7 +105,7 @@ export function useAuth() {
 
   const logout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await apiFetch('/api/auth/logout', { method: 'POST' });
     } catch {
       // Ignore errors
     }

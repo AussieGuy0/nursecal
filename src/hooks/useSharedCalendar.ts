@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { SharedCalendarData } from '../types';
+import { apiFetch } from '../utils/api';
 
 export function useSharedCalendar(ownerEmail: string | null) {
   const [data, setData] = useState<SharedCalendarData | null>(null);
@@ -13,7 +14,7 @@ export function useSharedCalendar(ownerEmail: string | null) {
 
     setLoading(true);
     try {
-      const res = await fetch(`/api/shared-calendars/${encodeURIComponent(ownerEmail)}`);
+      const res = await apiFetch(`/api/shared-calendars/${encodeURIComponent(ownerEmail)}`);
       if (res.ok) {
         setData(await res.json());
       }
