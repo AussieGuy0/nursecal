@@ -35,6 +35,9 @@ export default defineConfig({
             handler: 'NetworkFirst',
             options: {
               cacheName: 'static-assets',
+              // Fall back to the cached bundle if the network stalls, so a
+              // reload on a flaky connection doesn't hang waiting for JS/CSS.
+              networkTimeoutSeconds: 3,
               expiration: {
                 maxEntries: 50,
                 maxAgeSeconds: 30 * 24 * 60 * 60,
