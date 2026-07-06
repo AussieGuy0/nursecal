@@ -92,9 +92,10 @@ describe('migrate', () => {
     migrate(db);
 
     const rows = db
-      .prepare<{ sql: string }, []>(
-        "SELECT sql FROM sqlite_master WHERE type IN ('table', 'index') AND name NOT LIKE 'sqlite_%' ORDER BY type, name",
-      )
+      .prepare<
+        { sql: string },
+        []
+      >("SELECT sql FROM sqlite_master WHERE type IN ('table', 'index') AND name NOT LIKE 'sqlite_%' ORDER BY type, name")
       .all();
 
     const generated = rows.map((r) => r.sql + ';').join('\n\n') + '\n';
