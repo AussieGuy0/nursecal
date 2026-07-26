@@ -14,6 +14,7 @@ import { useShares } from './hooks/useShares';
 import { useSharedCalendar } from './hooks/useSharedCalendar';
 import { useGoogleCalendar } from './hooks/useGoogleCalendar';
 import { useToast } from './context/ToastContext';
+import { hardReload } from './utils/recover';
 
 export default function App() {
   const today = new Date();
@@ -98,7 +99,7 @@ export default function App() {
     return (
       <div className="h-screen flex flex-col items-center justify-center gap-4 bg-gray-100">
         <div className="text-gray-600">Loading...</div>
-        <button onClick={() => window.location.reload()} className="text-sm text-blue-500 underline">
+        <button onClick={hardReload} className="text-sm text-blue-500 underline">
           Taking too long? Tap to reload
         </button>
       </div>
@@ -135,8 +136,11 @@ export default function App() {
       />
 
       {isLoading || sharedCalendar.loading ? (
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex-1 flex flex-col items-center justify-center gap-4">
           <div className="text-gray-600">Loading your calendar...</div>
+          <button onClick={hardReload} className="text-sm text-blue-500 underline">
+            Taking too long? Tap to reload
+          </button>
         </div>
       ) : (
         <Calendar

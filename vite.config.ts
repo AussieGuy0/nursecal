@@ -29,6 +29,10 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         navigateFallbackDenylist: [/^\/api\//],
         cleanupOutdatedCaches: true,
+        // NOTE: `registerType: 'autoUpdate'` forces clientsClaim/skipWaiting on,
+        // so a new worker always claims pages that are already open and can drop
+        // requests that were in flight across the swap. Setting them here does
+        // nothing — the app absorbs that by retrying instead (see utils/api.ts).
         runtimeCaching: [
           {
             urlPattern: /\.(?:js|css)$/,
