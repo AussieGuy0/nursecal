@@ -6,17 +6,11 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastProvider } from './context/ToastContext';
 import './index.css';
 
-// Reload the page when a new service worker takes control, so in-flight
-// fetches from the old SW context don't hang silently.
-if ('serviceWorker' in navigator) {
-  let reloading = false;
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!reloading) {
-      reloading = true;
-      window.location.reload();
-    }
-  });
-}
+// NOTE: do not reload on `controllerchange`. Reloading there interrupts
+// whatever the page is doing — including the opening /api/auth/me request —
+// and the guard against repeating it only lives as long as the page, so a
+// controller change on each load reloads forever. The app instead survives a
+// dropped request by retrying it (see utils/api.ts).
 
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
