@@ -1,3 +1,6 @@
+import { bootId, recordDiagnostic } from './diagnostics';
+import { diagnosticPath, diagnosticId } from '../../shared/diagnostics';
+
 const TIMEOUT_MS = 10_000;
 
 export interface ApiFetchOptions {
@@ -33,20 +36,58 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  * callers that never read the body the timer fires at the deadline and aborts
  * an already-completed response, which is a harmless no-op.
  */
-async function fetchOnce(url: string, options: RequestInit | undefined, timeoutMs: number): Promise<Response> {
+async function fetchOnce(
+  url: string,
+  options: RequestInit | undefined,
+  timeoutMs: number,
+  attempt: number,
+): Promise<Response> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const requestId = crypto.randomUUID();
+  const started = performance.now();
+  const details = { requestId, path: diagnosticPath(url), method: options?.method ?? 'GET', attempt, timeoutMs };
+  const elapsedMs = () => Math.round(performance.now() - started);
+  const headers = new Headers(options?.headers);
+  headers.set('X-Request-ID', requestId);
+  headers.set('X-Client-Boot-ID', bootId);
+  recordDiagnostic('request.start', details);
+  const timeoutId = setTimeout(() => {
+    recordDiagnostic('request.deadline', { ...details, elapsedMs: elapsedMs() });
+    controller.abort();
+  }, timeoutMs);
 
   let res: Response;
   try {
-    res = await fetch(url, { ...options, signal: controller.signal });
+    res = await fetch(url, { ...options, headers, signal: controller.signal });
   } catch (err) {
     clearTimeout(timeoutId);
+    recordDiagnostic('request.error', { ...details, elapsedMs: elapsedMs(), aborted: controller.signal.aborted });
     throw err;
   }
 
-  const clear = () => clearTimeout(timeoutId);
-  const guard = <T>(read: () => Promise<T>): Promise<T> => read().finally(clear);
+  recordDiagnostic('request.headers', {
+    ...details,
+    elapsedMs: elapsedMs(),
+    status: res.status,
+    serverRequestId: diagnosticId(res.headers.get('X-Request-ID')) ?? null,
+  });
+  const guard = async <T>(read: () => Promise<T>): Promise<T> => {
+    recordDiagnostic('request.body.start', details);
+    try {
+      const body = await read();
+      recordDiagnostic('request.body.end', { ...details, elapsedMs: elapsedMs() });
+      return body;
+    } catch (err) {
+      recordDiagnostic('request.body.error', {
+        ...details,
+        elapsedMs: elapsedMs(),
+        aborted: controller.signal.aborted,
+      });
+      throw err;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  };
 
   const originalJson = res.json.bind(res);
   const originalText = res.text.bind(res);
@@ -78,7 +119,7 @@ export async function apiFetch(
       await sleep(retryDelayMs * 2 ** (attempt - 1));
     }
     try {
-      return await fetchOnce(url, options, deadlines[Math.min(attempt, deadlines.length - 1)]);
+      return await fetchOnce(url, options, deadlines[Math.min(attempt, deadlines.length - 1)], attempt + 1);
     } catch (err) {
       lastError = err;
     }

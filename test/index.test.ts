@@ -548,3 +548,24 @@ describe('Sharing', () => {
     expect(res.status).toBe(404);
   });
 });
+
+// Correlation must cover parsing errors too, before derive/auth/route handlers run.
+describe('Request correlation', () => {
+  test('echoes the request ID for auth checks', async () => {
+    const id = crypto.randomUUID();
+    const res = await app.handle(new Request(`${BASE}/api/auth/me`, { headers: { 'X-Request-ID': id } }));
+    expect(res.headers.get('X-Request-ID')).toBe(id);
+    expect(res.status).toBe(200);
+  });
+  test('includes a generated ID on malformed request bodies', async () => {
+    const res = await app.handle(
+      new Request(`${BASE}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Request-ID': 'invalid' },
+        body: '{',
+      }),
+    );
+    expect(res.status).toBe(400);
+    expect(res.headers.get('X-Request-ID')).toMatch(/^[a-f0-9-]{36}$/);
+  });
+});

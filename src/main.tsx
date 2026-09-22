@@ -1,3 +1,4 @@
+import { initializeDiagnostics } from './utils/diagnostics';
 import * as Sentry from '@sentry/react';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -16,6 +17,8 @@ Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
   environment: import.meta.env.PROD ? 'production' : 'development',
 });
+
+initializeDiagnostics();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

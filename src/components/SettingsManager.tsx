@@ -1,3 +1,4 @@
+import { DiagnosticsButton } from './DiagnosticsButton';
 import { useState } from 'react';
 import { Label, Share, ActionResult } from '../types';
 import { useToast } from '../context/ToastContext';
@@ -378,6 +379,10 @@ export function SettingsManager({
               )}
             </div>
           )}
+
+          <div className="mt-6">
+            <DiagnosticsButton />
+          </div>
 
           {/* Sign out */}
           {!showForm && onLogout && (

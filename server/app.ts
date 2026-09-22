@@ -1,3 +1,4 @@
+import { createRequestDiagnostics } from './diagnostics';
 import * as Sentry from '@sentry/bun';
 import { Elysia, t } from 'elysia';
 import { jwt } from '@elysiajs/jwt';
@@ -64,16 +65,18 @@ export function createApp({
     }
   }, 60 * 1000);
 
+  const diagnostics = createRequestDiagnostics();
   const app = new Elysia()
-    .onError(({ error }) => {
+    .onRequest(({ request, set }) => {
+      // Runs before body parsing, authentication and route handling.
+      set.headers['X-Request-ID'] = diagnostics.start(request);
+    })
+    .onError(({ error, request, code }) => {
+      diagnostics.error(request, code);
       Sentry.captureException(error);
     })
-    .derive(({ request }) => {
-      return { requestStart: performance.now(), requestPath: new URL(request.url).pathname };
-    })
-    .onAfterResponse(({ request, set, requestStart, requestPath }) => {
-      const duration = (performance.now() - requestStart).toFixed(1);
-      console.log(`${request.method} ${requestPath} ${set.status ?? 200} ${duration}ms`);
+    .onAfterResponse(({ request, set, responseValue }) => {
+      diagnostics.end(request, responseValue instanceof Response ? responseValue.status : (set.status ?? 200));
     })
     .use(
       openapi({
