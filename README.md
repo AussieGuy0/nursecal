@@ -112,3 +112,11 @@ docker compose up -d --build
 ### Reverse proxy
 
 For production, put a reverse proxy (Caddy, nginx, Traefik, etc.) in front to handle HTTPS. Set `NODE_ENV=production` in your `.env` so auth cookies are set with `Secure`.
+
+## Loading diagnostics
+
+If the app gets stuck, use **Download diagnostics** on the loading screen (also available
+on the login screen and in Settings). The file preserves a bounded timeline across reloads
+and includes request IDs to match against server arrival/completion logs. See
+[the investigation guide](docs/loading-diagnostics.md) for collection steps, Sentry setup,
+and how to distinguish browser, network, and server failures.

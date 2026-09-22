@@ -1,3 +1,4 @@
+import { serverInstanceId } from './diagnostics';
 import * as Sentry from '@sentry/bun';
 import { createApp } from './app';
 import { createSmtpEmailService, createLoggingEmailService, type EmailService } from './email';
@@ -28,6 +29,8 @@ if (SMTP_HOST && SMTP_PORT && SMTP_USERNAME && SMTP_PASSWORD) {
   console.log('Using logging email service');
 }
 
+console.log(JSON.stringify({ event: 'server.starting', at: new Date().toISOString(), serverInstanceId }));
+
 const { app } = createApp({
   dbPath: process.env.NODE_ENV === 'production' ? '/app/data/nursecal.db' : './nursecal.db',
   jwtSecret: process.env.JWT_SECRET,
@@ -37,6 +40,6 @@ const { app } = createApp({
 
 app.listen(PORT);
 
-console.log(`Server running at http://localhost:${PORT}`);
+console.log(JSON.stringify({ event: 'server.listening', at: new Date().toISOString(), serverInstanceId, port: PORT }));
 
 export type App = typeof app;

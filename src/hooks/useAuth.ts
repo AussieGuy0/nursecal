@@ -1,3 +1,4 @@
+import { recordDiagnostic } from '../utils/diagnostics';
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '../utils/api';
 
@@ -21,6 +22,7 @@ export function useAuth() {
   });
 
   const checkAuth = useCallback(async (isInitial = false) => {
+    recordDiagnostic('auth.check.start', { initial: isInitial });
     try {
       // Retried: the opening request can be dropped by a service worker that is
       // activating and claiming the page, in which case it never reaches the
@@ -30,12 +32,18 @@ export function useAuth() {
         timeoutMs: [3_000, 6_000, 10_000],
       });
       const data = await res.json();
+      recordDiagnostic('auth.check.end', {
+        initial: isInitial,
+        authenticated: Boolean(data.authenticated),
+        status: res.status,
+      });
       setAuthState({
         authenticated: data.authenticated,
         email: data.email || null,
         loading: false,
       });
     } catch {
+      recordDiagnostic('auth.check.error', { initial: isInitial });
       // A failed re-check means the network blipped, not that the session
       // ended — dropping the user back to the login form there would log them
       // out every time they reopened the app offline. Only the opening check
@@ -51,6 +59,7 @@ export function useAuth() {
     checkAuth(true);
 
     const watchdog = setTimeout(() => {
+      recordDiagnostic('auth.watchdog.fired');
       setAuthState((prev) => (prev.loading ? { ...prev, loading: false } : prev));
     }, AUTH_WATCHDOG_MS);
 

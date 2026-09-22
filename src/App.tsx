@@ -1,3 +1,5 @@
+import { DiagnosticsButton } from './components/DiagnosticsButton';
+import { recordDiagnostic, reportLoadingProblem } from './utils/diagnostics';
 import { useState, useEffect, useCallback } from 'react';
 import { Header } from './components/Header';
 import { Calendar } from './components/Calendar';
@@ -94,6 +96,26 @@ export default function App() {
     }
   };
 
+  useEffect(() => {
+    const phase = authLoading
+      ? 'auth'
+      : !authenticated
+        ? 'signed-out'
+        : labelsLoading || shiftsLoading || sharedCalendar.loading
+          ? 'calendar'
+          : 'ready';
+    recordDiagnostic('ui.phase', {
+      phase,
+      authLoading,
+      labelsLoading,
+      shiftsLoading,
+      sharedLoading: sharedCalendar.loading,
+    });
+    if (phase !== 'auth' && phase !== 'calendar') return;
+    const timer = setTimeout(() => reportLoadingProblem(`${phase}-loading-over-8s`), 8_000);
+    return () => clearTimeout(timer);
+  }, [authLoading, authenticated, labelsLoading, shiftsLoading, sharedCalendar.loading]);
+
   // Show loading spinner while checking auth
   if (authLoading) {
     return (
@@ -102,13 +124,21 @@ export default function App() {
         <button onClick={hardReload} className="text-sm text-blue-500 underline">
           Taking too long? Tap to reload
         </button>
+        <DiagnosticsButton />
       </div>
     );
   }
 
   // Show auth form if not authenticated
   if (!authenticated) {
-    return <AuthForm onLogin={login} onRegisterInitiate={registerInitiate} onRegisterVerify={registerVerify} />;
+    return (
+      <>
+        <AuthForm onLogin={login} onRegisterInitiate={registerInitiate} onRegisterVerify={registerVerify} />
+        <div className="fixed bottom-4 left-0 right-0 text-center">
+          <DiagnosticsButton />
+        </div>
+      </>
+    );
   }
 
   // Show loading state while fetching data
@@ -141,6 +171,7 @@ export default function App() {
           <button onClick={hardReload} className="text-sm text-blue-500 underline">
             Taking too long? Tap to reload
           </button>
+          <DiagnosticsButton />
         </div>
       ) : (
         <Calendar
