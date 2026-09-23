@@ -288,11 +288,11 @@ describe('Calendar', () => {
     expect(data).toEqual({});
   });
 
-  test('PUT /api/calendar saves shifts', async () => {
+  test('PATCH /api/calendar saves shifts', async () => {
     const shifts = { '2025-01-15': labelId1, '2025-01-16': labelId2 };
     const res = await app.handle(
       new Request(`${BASE}/api/calendar`, {
-        method: 'PUT',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Cookie: cookie },
         body: JSON.stringify(shifts),
       }),
@@ -314,13 +314,13 @@ describe('Calendar', () => {
     expect(data['2025-01-16']).toBe(labelId2);
   });
 
-  test('PUT /api/calendar overwrites previous data', async () => {
-    const newShifts = { '2025-02-01': labelId3 };
+  test('PATCH /api/calendar changes only the specified days', async () => {
+    const changes = { '2025-01-15': labelId3, '2025-02-01': labelId3 };
     await app.handle(
       new Request(`${BASE}/api/calendar`, {
-        method: 'PUT',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Cookie: cookie },
-        body: JSON.stringify(newShifts),
+        body: JSON.stringify(changes),
       }),
     );
 
@@ -330,23 +330,79 @@ describe('Calendar', () => {
       }),
     );
     const data = await res.json();
-    expect(data).toEqual(newShifts);
+    expect(data).toEqual({ ...changes, '2025-01-16': labelId2 });
   });
 
-  test('PUT /api/calendar rejects invalid label IDs', async () => {
+  test('PATCH /api/calendar rejects invalid label IDs without applying other changes', async () => {
     const res = await app.handle(
       new Request(`${BASE}/api/calendar`, {
-        method: 'PUT',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Cookie: cookie },
-        body: JSON.stringify({ '2025-03-01': 'nonexistent-label-id' }),
+        body: JSON.stringify({ '2025-03-01': labelId1, '2025-03-02': 'nonexistent-label-id' }),
       }),
     );
     expect(res.status).toBe(400);
     const data = await res.json();
     expect(data.error).toBe('Invalid label ID');
+
+    const calendar = await app.handle(new Request(`${BASE}/api/calendar`, { headers: { Cookie: cookie } }));
+    expect((await calendar.json())['2025-03-01']).toBeUndefined();
   });
 
-  test('PUT /api/calendar accepts empty shifts', async () => {
+  test('PATCH /api/calendar clears one day and preserves the others', async () => {
+    const res = await app.handle(
+      new Request(`${BASE}/api/calendar`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Cookie: cookie },
+        body: JSON.stringify({ '2025-01-15': null }),
+      }),
+    );
+    expect(res.status).toBe(200);
+    const calendar = await app.handle(new Request(`${BASE}/api/calendar`, { headers: { Cookie: cookie } }));
+    expect(await calendar.json()).toEqual({ '2025-01-16': labelId2, '2025-02-01': labelId3 });
+  });
+
+  test('PATCH /api/calendar can edit after more than 366 days are assigned', async () => {
+    const dates = Array.from({ length: 367 }, (_, i) => new Date(Date.UTC(2026, 0, i + 1)).toISOString().slice(0, 10));
+    for (let i = 0; i < dates.length; i += 100) {
+      const changes = Object.fromEntries(dates.slice(i, i + 100).map((date) => [date, labelId1]));
+      const res = await app.handle(
+        new Request(`${BASE}/api/calendar`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Cookie: cookie },
+          body: JSON.stringify(changes),
+        }),
+      );
+      expect(res.status).toBe(200);
+    }
+
+    const update = await app.handle(
+      new Request(`${BASE}/api/calendar`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Cookie: cookie },
+        body: JSON.stringify({ [dates[0]]: labelId2 }),
+      }),
+    );
+    expect(update.status).toBe(200);
+    const calendar = await app.handle(new Request(`${BASE}/api/calendar`, { headers: { Cookie: cookie } }));
+    const shifts = await calendar.json();
+    expect(shifts[dates[0]]).toBe(labelId2);
+    expect(shifts[dates[366]]).toBe(labelId1);
+    expect(Object.keys(shifts).length).toBeGreaterThan(366);
+  });
+
+  test('PATCH /api/calendar accepts an empty change set', async () => {
+    const res = await app.handle(
+      new Request(`${BASE}/api/calendar`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Cookie: cookie },
+        body: JSON.stringify({}),
+      }),
+    );
+    expect(res.status).toBe(200);
+  });
+
+  test('PUT /api/calendar cannot replace the entire calendar', async () => {
     const res = await app.handle(
       new Request(`${BASE}/api/calendar`, {
         method: 'PUT',
@@ -354,7 +410,10 @@ describe('Calendar', () => {
         body: JSON.stringify({}),
       }),
     );
-    expect(res.status).toBe(200);
+    expect(res.status).toBeGreaterThanOrEqual(400);
+
+    const calendar = await app.handle(new Request(`${BASE}/api/calendar`, { headers: { Cookie: cookie } }));
+    expect((await calendar.json())['2025-02-01']).toBe(labelId3);
   });
 });
 
@@ -374,7 +433,7 @@ describe('Sharing', () => {
     const labelId = ownerLabelId;
     await app.handle(
       new Request(`${BASE}/api/calendar`, {
-        method: 'PUT',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Cookie: cookieA },
         body: JSON.stringify({ '2025-03-01': labelId }),
       }),

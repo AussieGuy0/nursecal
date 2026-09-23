@@ -427,35 +427,37 @@ export function createApp({
           }
           return shifts;
         })
-        .put(
+        .patch(
           '/api/calendar',
           ({ user, body, set }) => {
             if (Object.keys(body).length > 366) {
               set.status = 400;
-              return { error: 'Too many calendar entries' };
+              return { error: 'Too many calendar changes' };
             }
 
-            if (Object.keys(body).length > 0) {
+            if (Object.values(body).some((labelId) => labelId !== null)) {
               const userLabels = labelQueries.findByUserId.all(user.id);
               const validLabelIds = new Set(userLabels.map((l) => l.id));
-              const invalidId = Object.values(body).find((id) => !validLabelIds.has(id));
-              if (invalidId) {
+              if (Object.values(body).some((id) => id !== null && !validLabelIds.has(id))) {
                 set.status = 400;
                 return { error: 'Invalid label ID' };
               }
             }
 
             db.transaction(() => {
-              calendarDayQueries.deleteByUserId.run(user.id);
               for (const [date, labelId] of Object.entries(body)) {
-                calendarDayQueries.upsert.run(user.id, date, labelId);
+                if (labelId === null) {
+                  calendarDayQueries.delete.run(user.id, date);
+                } else {
+                  calendarDayQueries.upsert.run(user.id, date, labelId);
+                }
               }
             })();
 
             return body;
           },
           {
-            body: t.Record(t.String(), t.String()),
+            body: t.Record(t.String(), t.Union([t.String(), t.Null()])),
           },
         )
         // Sharing
