@@ -59,8 +59,6 @@ export function createDB(dbPath: string) {
     ),
 
     delete: db.prepare('DELETE FROM calendar_day WHERE user_id = ? AND date = ?'),
-
-    deleteByUserId: db.prepare('DELETE FROM calendar_day WHERE user_id = ?'),
   };
 
   const oauthStateQueries = {
