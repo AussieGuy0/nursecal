@@ -465,7 +465,10 @@ export function createApp({
         )
         .get('/api/notes', ({ user }) => {
           const rows = noteQueries.findByUserId.all(user.id);
-          return Object.fromEntries(rows.map(({ date, note }) => [date, note])) as NoteMap;
+          return {
+            notes: Object.fromEntries(rows.filter(({ note }) => note).map(({ date, note }) => [date, note])),
+            versions: Object.fromEntries(rows.map(({ date, version }) => [date, version])),
+          };
         })
         .put(
           '/api/notes/:date',
@@ -484,17 +487,21 @@ export function createApp({
               return { error: 'Invalid date' };
             }
 
-            if (!body.note.trim()) {
-              noteQueries.delete.run(user.id, params.date);
-              return { success: true, note: '' };
+            const note = body.note.trim();
+            const result =
+              body.version === 0
+                ? noteQueries.create.run(user.id, params.date, note)
+                : noteQueries.update.run(note, user.id, params.date, body.version);
+            const current = noteQueries.find.get(user.id, params.date) ?? { note: '', version: 0 };
+            if (result.changes === 0) {
+              set.status = 409;
+              return { error: 'Note changed since it was loaded', ...current };
             }
-
-            noteQueries.upsert.run(user.id, params.date, body.note.trim());
-            return { success: true, note: body.note.trim() };
+            return { success: true, ...current };
           },
           {
             params: t.Object({ date: t.String() }),
-            body: t.Object({ note: t.String({ maxLength: 1000 }) }),
+            body: t.Object({ note: t.String({ maxLength: 1000 }), version: t.Integer({ minimum: 0 }) }),
           },
         )
         // Sharing
@@ -608,7 +615,9 @@ export function createApp({
               color: l.color,
             }));
 
-            const notes: NoteMap = Object.fromEntries(noteRows.map(({ date, note }) => [date, note]));
+            const notes: NoteMap = Object.fromEntries(
+              noteRows.filter(({ note }) => note).map(({ date, note }) => [date, note]),
+            );
 
             return { shifts, notes, labels: labelResponse };
           },

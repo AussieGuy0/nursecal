@@ -44,7 +44,13 @@ export default function App() {
     loading: labelsLoading,
   } = useLabels(authenticated, handleSyncError);
   const { shifts, setShift, clearShift, getShift, loading: shiftsLoading } = useShifts(authenticated, handleSyncError);
-  const { notes, loading: notesLoading, saveNote } = useNotes(authenticated, handleSyncError);
+  const {
+    notes,
+    loading: notesLoading,
+    saveNote,
+    statuses: noteStatuses,
+    retryNote,
+  } = useNotes(authenticated, handleSyncError);
   const { shares, sharedWithMe, addShare, removeShare } = useShares(authenticated);
   const sharedCalendar = useSharedCalendar(viewingOwnerEmail);
   const google = useGoogleCalendar(authenticated, year, month);
@@ -166,6 +172,8 @@ export default function App() {
           onSelect={handleSelectLabel}
           onClear={handleClearShift}
           onClose={() => setSelectedDate(null)}
+          noteStatus={noteStatuses[selectedDate]}
+          onRetryNote={() => retryNote(selectedDate)}
           date={selectedDate}
           note={notes[selectedDate] || ''}
           onSaveNote={(note) => saveNote(selectedDate, note)}

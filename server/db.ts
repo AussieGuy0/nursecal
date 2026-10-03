@@ -64,13 +64,17 @@ export function createDB(dbPath: string) {
   };
 
   const noteQueries = {
-    findByUserId: db.prepare<{ date: string; note: string }, [number]>(
-      'SELECT date, note FROM calendar_notes WHERE user_id = ? ORDER BY date',
+    findByUserId: db.prepare<{ date: string; note: string; version: number }, [number]>(
+      'SELECT date, note, version FROM calendar_notes WHERE user_id = ? ORDER BY date',
     ),
-    upsert: db.prepare(
-      'INSERT INTO calendar_notes (user_id, date, note) VALUES (?, ?, ?) ON CONFLICT(user_id, date) DO UPDATE SET note = excluded.note',
+    find: db.prepare<{ note: string; version: number }, [number, string]>(
+      'SELECT note, version FROM calendar_notes WHERE user_id = ? AND date = ?',
     ),
-    delete: db.prepare('DELETE FROM calendar_notes WHERE user_id = ? AND date = ?'),
+    // Empty notes remain as tombstones so clearing never resets the version.
+    create: db.prepare('INSERT OR IGNORE INTO calendar_notes (user_id, date, note, version) VALUES (?, ?, ?, 1)'),
+    update: db.prepare(
+      'UPDATE calendar_notes SET note = ?, version = version + 1 WHERE user_id = ? AND date = ? AND version = ?',
+    ),
   };
 
   const oauthStateQueries = {

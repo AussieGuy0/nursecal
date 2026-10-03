@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
 import { Label } from '../types';
+import { NoteSaveStatus } from '../hooks/useNotes';
 
 interface LabelPickerProps {
   labels: Label[];
@@ -10,6 +10,8 @@ interface LabelPickerProps {
   date: string;
   note: string;
   onSaveNote: (note: string) => void;
+  noteStatus?: NoteSaveStatus;
+  onRetryNote: () => void;
 }
 
 export function LabelPicker({
@@ -21,16 +23,9 @@ export function LabelPicker({
   date,
   note,
   onSaveNote,
+  noteStatus,
+  onRetryNote,
 }: LabelPickerProps) {
-  const [draft, setDraft] = useState(note);
-
-  useEffect(() => setDraft(note), [date]);
-
-  const handleNoteChange = (value: string) => {
-    setDraft(value);
-    onSaveNote(value);
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       {/* Backdrop */}
@@ -88,10 +83,10 @@ export function LabelPicker({
               <label htmlFor="date-note" className="text-sm font-medium text-gray-700">
                 Note
               </label>
-              {draft && (
+              {note && (
                 <button
                   type="button"
-                  onClick={() => handleNoteChange('')}
+                  onClick={() => onSaveNote('')}
                   className="rounded px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
                 >
                   Clear note
@@ -100,14 +95,28 @@ export function LabelPicker({
             </span>
             <textarea
               id="date-note"
-              value={draft}
-              onChange={(event) => handleNoteChange(event.target.value)}
+              value={note}
+              onChange={(event) => onSaveNote(event.target.value)}
               maxLength={1000}
               rows={3}
               placeholder="Add a note for this date"
               className="w-full rounded-lg border border-gray-300 p-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
-            <span className="block mt-1 text-right text-xs text-gray-500">{draft.length}/1000</span>
+            <div role="status" className="mt-1 text-xs text-gray-600">
+              {noteStatus === 'saving' && 'Saving…'}
+              {noteStatus === 'saved' && 'Saved'}
+              {(noteStatus === 'error' || noteStatus === 'conflict') && (
+                <>
+                  {noteStatus === 'conflict'
+                    ? 'Changed elsewhere. Retry to replace it with your draft.'
+                    : 'Not saved. Your draft is kept.'}
+                  <button type="button" onClick={onRetryNote} className="ml-2 text-blue-600 underline">
+                    Retry
+                  </button>
+                </>
+              )}
+            </div>
+            <span className="block mt-1 text-right text-xs text-gray-500">{note.length}/1000</span>
           </div>
         </div>
       </div>

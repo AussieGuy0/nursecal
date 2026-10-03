@@ -18,7 +18,7 @@ CREATE TABLE calendar_day (
 CREATE TABLE calendar_notes (
   user_id INTEGER NOT NULL,
   date TEXT NOT NULL,
-  note TEXT NOT NULL,
+  note TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1,
   PRIMARY KEY (user_id, date),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );

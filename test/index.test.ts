@@ -176,26 +176,57 @@ describe('Calendar notes', () => {
 
   test('saves, updates, and clears a date note', async () => {
     const date = '2025-04-10';
-    const save = (note: string) =>
+    const save = (note: string, version: number) =>
       app.handle(
         new Request(`${BASE}/api/notes/${date}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', Cookie: cookie },
-          body: JSON.stringify({ note }),
+          body: JSON.stringify({ note, version }),
         }),
       );
 
-    expect((await save('Bring uniform')).status).toBe(200);
+    expect((await save('Bring uniform', 0)).status).toBe(200);
     let res = await app.handle(new Request(`${BASE}/api/notes`, { headers: { Cookie: cookie } }));
-    expect(await res.json()).toEqual({ [date]: 'Bring uniform' });
+    expect(await res.json()).toEqual({ notes: { [date]: 'Bring uniform' }, versions: { [date]: 1 } });
 
-    expect((await save('Bring blue uniform')).status).toBe(200);
+    expect((await save('Bring blue uniform', 1)).status).toBe(200);
     res = await app.handle(new Request(`${BASE}/api/notes`, { headers: { Cookie: cookie } }));
-    expect(await res.json()).toEqual({ [date]: 'Bring blue uniform' });
+    expect(await res.json()).toEqual({ notes: { [date]: 'Bring blue uniform' }, versions: { [date]: 2 } });
 
-    expect((await save('   ')).status).toBe(200);
+    expect((await save('   ', 2)).status).toBe(200);
     res = await app.handle(new Request(`${BASE}/api/notes`, { headers: { Cookie: cookie } }));
-    expect(await res.json()).toEqual({});
+    expect(await res.json()).toEqual({ notes: {}, versions: { [date]: 3 } });
+  });
+
+  test('rejects stale writes and preserves versions after clearing', async () => {
+    const date = '2025-04-11';
+    const save = (note: string, version: number) =>
+      app.handle(
+        new Request(`${BASE}/api/notes/${date}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Cookie: cookie },
+          body: JSON.stringify({ note, version }),
+        }),
+      );
+    expect(await (await save('First', 0)).json()).toEqual({ success: true, note: 'First', version: 1 });
+    const stale = await save('Stale', 0);
+    expect(stale.status).toBe(409);
+    expect(await stale.json()).toMatchObject({ note: 'First', version: 1 });
+    expect(await (await save('', 1)).json()).toMatchObject({ note: '', version: 2 });
+    expect((await save('Resurrected', 0)).status).toBe(409);
+    expect((await save('Resurrected', 1)).status).toBe(409);
+    expect(await (await save('New', 2)).json()).toMatchObject({ note: 'New', version: 3 });
+  });
+
+  test('requires an expected version', async () => {
+    const res = await app.handle(
+      new Request(`${BASE}/api/notes/2025-04-12`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Cookie: cookie },
+        body: JSON.stringify({ note: 'Unversioned' }),
+      }),
+    );
+    expect(res.status).toBe(422);
   });
 
   test('rejects invalid date keys', async () => {
@@ -203,7 +234,7 @@ describe('Calendar notes', () => {
       new Request(`${BASE}/api/notes/not-a-date`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Cookie: cookie },
-        body: JSON.stringify({ note: 'Test' }),
+        body: JSON.stringify({ note: 'Test', version: 0 }),
       }),
     );
     expect(res.status).toBe(400);
@@ -212,16 +243,16 @@ describe('Calendar notes', () => {
   test('does not expose another user’s notes', async () => {
     const otherCookie = await registerUser('notes-other@test.com', 'password123');
     const write = await app.handle(
-      new Request(`${BASE}/api/notes/2025-04-10`, {
+      new Request(`${BASE}/api/notes/2025-04-13`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Cookie: otherCookie },
-        body: JSON.stringify({ note: 'Private note' }),
+        body: JSON.stringify({ note: 'Private note', version: 0 }),
       }),
     );
     expect(write.status).toBe(200);
 
     const res = await app.handle(new Request(`${BASE}/api/notes`, { headers: { Cookie: cookie } }));
-    expect(await res.json()).toEqual({});
+    expect((await res.json()).notes).not.toHaveProperty('2025-04-13');
   });
 });
 
