@@ -29,13 +29,6 @@ async function verifyPassword(password: string, hash: string): Promise<boolean> 
   return await Bun.password.verify(password, hash);
 }
 
-function shouldUseSecureCookie(request: Request): boolean {
-  const forwardedProto = request.headers.get('x-forwarded-proto')?.split(',')[0].trim();
-  return (
-    process.env.NODE_ENV === 'production' && (new URL(request.url).protocol === 'https:' || forwardedProto === 'https')
-  );
-}
-
 export function createApp({
   dbPath,
   jwtSecret,
@@ -259,7 +252,7 @@ export function createApp({
         auth.set({
           value: token,
           httpOnly: true,
-          secure: shouldUseSecureCookie(request),
+          secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',
           maxAge: 60 * 60 * 24 * 30, // 30 days
           path: '/',
@@ -306,7 +299,7 @@ export function createApp({
         auth.set({
           value: token,
           httpOnly: true,
-          secure: shouldUseSecureCookie(request),
+          secure: process.env.NODE_ENV === 'production',
           sameSite: 'lax',
           maxAge: 60 * 60 * 24 * 30, // 30 days
           path: '/',
