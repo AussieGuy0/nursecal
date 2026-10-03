@@ -160,6 +160,69 @@ describe('Unauthenticated access', () => {
     const res = await app.handle(new Request(`${BASE}/api/calendar`));
     expect(res.status).toBe(401);
   });
+
+  test('GET /api/notes returns 401', async () => {
+    const res = await app.handle(new Request(`${BASE}/api/notes`));
+    expect(res.status).toBe(401);
+  });
+});
+
+describe('Calendar notes', () => {
+  let cookie: string;
+
+  beforeAll(async () => {
+    cookie = await registerUser('notes@test.com', 'password123');
+  });
+
+  test('saves, updates, and clears a date note', async () => {
+    const date = '2025-04-10';
+    const save = (note: string) =>
+      app.handle(
+        new Request(`${BASE}/api/notes/${date}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Cookie: cookie },
+          body: JSON.stringify({ note }),
+        }),
+      );
+
+    expect((await save('Bring uniform')).status).toBe(200);
+    let res = await app.handle(new Request(`${BASE}/api/notes`, { headers: { Cookie: cookie } }));
+    expect(await res.json()).toEqual({ [date]: 'Bring uniform' });
+
+    expect((await save('Bring blue uniform')).status).toBe(200);
+    res = await app.handle(new Request(`${BASE}/api/notes`, { headers: { Cookie: cookie } }));
+    expect(await res.json()).toEqual({ [date]: 'Bring blue uniform' });
+
+    expect((await save('   ')).status).toBe(200);
+    res = await app.handle(new Request(`${BASE}/api/notes`, { headers: { Cookie: cookie } }));
+    expect(await res.json()).toEqual({});
+  });
+
+  test('rejects invalid date keys', async () => {
+    const res = await app.handle(
+      new Request(`${BASE}/api/notes/not-a-date`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Cookie: cookie },
+        body: JSON.stringify({ note: 'Test' }),
+      }),
+    );
+    expect(res.status).toBe(400);
+  });
+
+  test('does not expose another user’s notes', async () => {
+    const otherCookie = await registerUser('notes-other@test.com', 'password123');
+    const write = await app.handle(
+      new Request(`${BASE}/api/notes/2025-04-10`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Cookie: otherCookie },
+        body: JSON.stringify({ note: 'Private note' }),
+      }),
+    );
+    expect(write.status).toBe(200);
+
+    const res = await app.handle(new Request(`${BASE}/api/notes`, { headers: { Cookie: cookie } }));
+    expect(await res.json()).toEqual({});
+  });
 });
 
 // ─── Labels ──────────────────────────────────────────────────────────────────

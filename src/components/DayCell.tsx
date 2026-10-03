@@ -10,6 +10,7 @@ interface DayCellProps {
   readOnly?: boolean;
   googleEvents?: GoogleCalendarEvent[];
   onGoogleEventTap?: (event: GoogleCalendarEvent) => void;
+  note?: string;
 }
 
 export function DayCell({
@@ -22,6 +23,7 @@ export function DayCell({
   readOnly,
   googleEvents,
   onGoogleEventTap,
+  note,
 }: DayCellProps) {
   const visibleEvents = googleEvents?.slice(0, 2) || [];
   const extraCount = (googleEvents?.length || 0) - 2;
@@ -49,6 +51,15 @@ export function DayCell({
       {label && (
         <span className="mt-1 px-2 py-1 text-sm font-bold rounded text-white" style={{ backgroundColor: label.color }}>
           {label.shortCode}
+        </span>
+      )}
+
+      {note && (
+        <span
+          className="mt-0.5 px-1.5 py-0.5 text-[10px] leading-tight rounded-full truncate max-w-full bg-blue-100 text-blue-800"
+          title={note}
+        >
+          {note}
         </span>
       )}
 

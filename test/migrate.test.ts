@@ -40,6 +40,7 @@ describe('migrate', () => {
     expect(tables).toContain('users');
     expect(tables).toContain('labels');
     expect(tables).toContain('calendar_day');
+    expect(tables).toContain('calendar_notes');
     expect(tables).toContain('otc');
     expect(tables).toContain('oauth_states');
     expect(tables).toContain('google_tokens');
@@ -81,6 +82,7 @@ describe('migrate', () => {
 
     // Insert calendar day data
     db.run("INSERT INTO calendar_day (user_id, date, label_id) VALUES (1, '2025-01-01', 'l1')");
+    db.run("INSERT INTO calendar_notes (user_id, date, note) VALUES (1, '2025-01-01', 'Call staffing')");
 
     // Verify foreign key enforcement
     expect(() => {

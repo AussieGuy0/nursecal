@@ -14,6 +14,10 @@ export interface ShiftMap {
   [date: string]: string; // date -> labelId
 }
 
+export interface NoteMap {
+  [date: string]: string; // date -> note text
+}
+
 export interface ActionResult {
   success: boolean;
   error?: string;
@@ -30,6 +34,7 @@ export interface SharedCalendar {
 
 export interface SharedCalendarData {
   shifts: ShiftMap;
+  notes: NoteMap;
   labels: Label[];
 }
 

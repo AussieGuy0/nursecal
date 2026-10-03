@@ -63,6 +63,16 @@ export function createDB(dbPath: string) {
     deleteByUserId: db.prepare('DELETE FROM calendar_day WHERE user_id = ?'),
   };
 
+  const noteQueries = {
+    findByUserId: db.prepare<{ date: string; note: string }, [number]>(
+      'SELECT date, note FROM calendar_notes WHERE user_id = ? ORDER BY date',
+    ),
+    upsert: db.prepare(
+      'INSERT INTO calendar_notes (user_id, date, note) VALUES (?, ?, ?) ON CONFLICT(user_id, date) DO UPDATE SET note = excluded.note',
+    ),
+    delete: db.prepare('DELETE FROM calendar_notes WHERE user_id = ? AND date = ?'),
+  };
+
   const oauthStateQueries = {
     insert: db.prepare('INSERT INTO oauth_states (state, user_id, expires_at) VALUES (?, ?, ?)'),
     find: db.prepare<{ state: string; user_id: number; expires_at: number }, [string]>(
@@ -132,7 +142,16 @@ export function createDB(dbPath: string) {
     delete: db.prepare('DELETE FROM google_tokens WHERE user_id = ?'),
   };
 
-  return { db, userQueries, labelQueries, calendarDayQueries, shareQueries, oauthStateQueries, googleTokenQueries };
+  return {
+    db,
+    userQueries,
+    labelQueries,
+    calendarDayQueries,
+    noteQueries,
+    shareQueries,
+    oauthStateQueries,
+    googleTokenQueries,
+  };
 }
 
 // Helper to generate UUIDs for labels

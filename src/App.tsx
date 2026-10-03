@@ -10,6 +10,7 @@ import { GoogleCalendarEvent } from './types';
 import { useAuth } from './hooks/useAuth';
 import { useLabels } from './hooks/useLabels';
 import { useShifts } from './hooks/useShifts';
+import { useNotes } from './hooks/useNotes';
 import { useShares } from './hooks/useShares';
 import { useSharedCalendar } from './hooks/useSharedCalendar';
 import { useGoogleCalendar } from './hooks/useGoogleCalendar';
@@ -43,6 +44,7 @@ export default function App() {
     loading: labelsLoading,
   } = useLabels(authenticated, handleSyncError);
   const { shifts, setShift, clearShift, getShift, loading: shiftsLoading } = useShifts(authenticated, handleSyncError);
+  const { notes, loading: notesLoading, saveNote } = useNotes(authenticated, handleSyncError);
   const { shares, sharedWithMe, addShare, removeShare } = useShares(authenticated);
   const sharedCalendar = useSharedCalendar(viewingOwnerEmail);
   const google = useGoogleCalendar(authenticated, year, month);
@@ -83,14 +85,12 @@ export default function App() {
   const handleSelectLabel = (labelId: string) => {
     if (selectedDate) {
       setShift(selectedDate, labelId);
-      setSelectedDate(null);
     }
   };
 
   const handleClearShift = () => {
     if (selectedDate) {
       clearShift(selectedDate);
-      setSelectedDate(null);
     }
   };
 
@@ -112,10 +112,11 @@ export default function App() {
   }
 
   // Show loading state while fetching data
-  const isLoading = labelsLoading || shiftsLoading;
+  const isLoading = labelsLoading || shiftsLoading || notesLoading;
   const isViewingShared = viewingOwnerEmail !== null;
 
   const displayShifts = isViewingShared && sharedCalendar.data ? sharedCalendar.data.shifts : shifts;
+  const displayNotes = isViewingShared && sharedCalendar.data ? sharedCalendar.data.notes || {} : notes;
   const displayLabels = isViewingShared && sharedCalendar.data ? sharedCalendar.data.labels : labels;
 
   return (
@@ -147,6 +148,7 @@ export default function App() {
           year={year}
           month={month}
           shifts={displayShifts}
+          notes={displayNotes}
           labels={displayLabels}
           onDayTap={handleDayTap}
           readOnly={isViewingShared}
@@ -164,6 +166,9 @@ export default function App() {
           onSelect={handleSelectLabel}
           onClear={handleClearShift}
           onClose={() => setSelectedDate(null)}
+          date={selectedDate}
+          note={notes[selectedDate] || ''}
+          onSaveNote={(note) => saveNote(selectedDate, note)}
         />
       )}
 

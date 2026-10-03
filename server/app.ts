@@ -4,7 +4,7 @@ import { jwt } from '@elysiajs/jwt';
 import { openapi, fromTypes } from '@elysiajs/openapi';
 import { createDB, generateId } from './db';
 import { createOTCService, generateOTC } from './otc';
-import { DEFAULT_LABELS, type JWTPayload, type LabelResponse, type ShiftMap } from './types';
+import { DEFAULT_LABELS, type JWTPayload, type LabelResponse, type NoteMap, type ShiftMap } from './types';
 import {
   buildAuthUrl,
   generateOAuthState,
@@ -29,6 +29,14 @@ async function verifyPassword(password: string, hash: string): Promise<boolean> 
   return await Bun.password.verify(password, hash);
 }
 
+function shouldUseSecureCookie(request: Request): boolean {
+  const forwardedProto = request.headers.get('x-forwarded-proto')?.split(',')[0].trim();
+  return (
+    process.env.NODE_ENV === 'production' &&
+    (new URL(request.url).protocol === 'https:' || forwardedProto === 'https')
+  );
+}
+
 export function createApp({
   dbPath,
   jwtSecret,
@@ -40,7 +48,7 @@ export function createApp({
   emailService: EmailService;
   emailDomain?: string;
 }) {
-  const { userQueries, labelQueries, calendarDayQueries, shareQueries, oauthStateQueries, googleTokenQueries, db } =
+  const { userQueries, labelQueries, calendarDayQueries, noteQueries, shareQueries, oauthStateQueries, googleTokenQueries, db } =
     createDB(dbPath);
   const { storeOTC, getOTC, deleteOTC } = createOTCService(db);
 
@@ -244,7 +252,7 @@ export function createApp({
         auth.set({
           value: token,
           httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
+          secure: shouldUseSecureCookie(request),
           sameSite: 'lax',
           maxAge: 60 * 60 * 24 * 30, // 30 days
           path: '/',
@@ -291,7 +299,7 @@ export function createApp({
         auth.set({
           value: token,
           httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
+          secure: shouldUseSecureCookie(request),
           sameSite: 'lax',
           maxAge: 60 * 60 * 24 * 30, // 30 days
           path: '/',
@@ -455,6 +463,40 @@ export function createApp({
             body: t.Record(t.String(), t.String()),
           },
         )
+        .get('/api/notes', ({ user }) => {
+          const rows = noteQueries.findByUserId.all(user.id);
+          return Object.fromEntries(rows.map(({ date, note }) => [date, note])) as NoteMap;
+        })
+        .put(
+          '/api/notes/:date',
+          ({ user, params, body, set }) => {
+            const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(params.date);
+            const parsedDate = dateMatch
+              ? new Date(Number(dateMatch[1]), Number(dateMatch[2]) - 1, Number(dateMatch[3]))
+              : null;
+            if (
+              !dateMatch ||
+              parsedDate?.getFullYear() !== Number(dateMatch[1]) ||
+              parsedDate?.getMonth() !== Number(dateMatch[2]) - 1 ||
+              parsedDate?.getDate() !== Number(dateMatch[3])
+            ) {
+              set.status = 400;
+              return { error: 'Invalid date' };
+            }
+
+            if (!body.note.trim()) {
+              noteQueries.delete.run(user.id, params.date);
+              return { success: true, note: '' };
+            }
+
+            noteQueries.upsert.run(user.id, params.date, body.note.trim());
+            return { success: true, note: body.note.trim() };
+          },
+          {
+            params: t.Object({ date: t.String() }),
+            body: t.Object({ note: t.String({ maxLength: 1000 }) }),
+          },
+        )
         // Sharing
         .post(
           '/api/shares',
@@ -552,6 +594,7 @@ export function createApp({
             }
 
             const days = calendarDayQueries.findByUserId.all(owner.id);
+            const noteRows = noteQueries.findByUserId.all(owner.id);
             const labels = labelQueries.findByUserId.all(owner.id);
 
             const shifts: ShiftMap = {};
@@ -565,7 +608,9 @@ export function createApp({
               color: l.color,
             }));
 
-            return { shifts, labels: labelResponse };
+            const notes: NoteMap = Object.fromEntries(noteRows.map(({ date, note }) => [date, note]));
+
+            return { shifts, notes, labels: labelResponse };
           },
           {
             params: t.Object({ ownerEmail: t.String() }),
