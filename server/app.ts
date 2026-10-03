@@ -32,8 +32,7 @@ async function verifyPassword(password: string, hash: string): Promise<boolean> 
 function shouldUseSecureCookie(request: Request): boolean {
   const forwardedProto = request.headers.get('x-forwarded-proto')?.split(',')[0].trim();
   return (
-    process.env.NODE_ENV === 'production' &&
-    (new URL(request.url).protocol === 'https:' || forwardedProto === 'https')
+    process.env.NODE_ENV === 'production' && (new URL(request.url).protocol === 'https:' || forwardedProto === 'https')
   );
 }
 
@@ -48,8 +47,16 @@ export function createApp({
   emailService: EmailService;
   emailDomain?: string;
 }) {
-  const { userQueries, labelQueries, calendarDayQueries, noteQueries, shareQueries, oauthStateQueries, googleTokenQueries, db } =
-    createDB(dbPath);
+  const {
+    userQueries,
+    labelQueries,
+    calendarDayQueries,
+    noteQueries,
+    shareQueries,
+    oauthStateQueries,
+    googleTokenQueries,
+    db,
+  } = createDB(dbPath);
   const { storeOTC, getOTC, deleteOTC } = createOTCService(db);
 
   const rateLimiter = createInMemoryRateLimiter({ windowMs: 15 * 60 * 1000, maxAttempts: 5 });

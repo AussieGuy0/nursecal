@@ -12,7 +12,16 @@ interface LabelPickerProps {
   onSaveNote: (note: string) => void;
 }
 
-export function LabelPicker({ labels, currentLabelId, onSelect, onClear, onClose, date, note, onSaveNote }: LabelPickerProps) {
+export function LabelPicker({
+  labels,
+  currentLabelId,
+  onSelect,
+  onClear,
+  onClose,
+  date,
+  note,
+  onSaveNote,
+}: LabelPickerProps) {
   const [draft, setDraft] = useState(note);
 
   useEffect(() => setDraft(note), [date]);
