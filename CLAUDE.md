@@ -71,7 +71,7 @@ If tests are failing, fix them. Never explain away failures as "pre-existing" â€
 ### Key Patterns
 
 - **State Management:** Custom React hooks (no Redux/Zustand). Each hook manages its own API calls and local state.
-- **Sync Strategy:** `useShifts` uses 500ms debounced sync with optimistic UI updates.
+- **Sync Strategy:** `useShifts` coalesces day changes for 500ms and sends serialized PATCH requests with optimistic UI updates.
 - **Auth:** JWT stored in HTTP-only cookies, 30-day expiration. Rate limiting on auth endpoints.
 - **Email:** `EmailService` abstraction with SMTP (nodemailer), logging (console), and in-memory (testing) implementations. `createApp()` requires an `emailService`. Registration OTC is delivered via this service.
 - **Database:** SQLite with prepared statements. Shifts stored as JSON. Schema managed via migration files in `server/migrations/` (see below).
@@ -85,7 +85,7 @@ If tests are failing, fix them. Never explain away failures as "pre-existing" â€
 - `POST /api/auth/logout` - Logout
 - `GET /api/auth/me` - Check auth status
 - `GET/POST/PUT/DELETE /api/labels` - CRUD for shift labels
-- `GET/PUT /api/calendar` - Get/update shift assignments
+- `GET/PATCH /api/calendar` - Get shifts / update or clear selected days (`null` clears a day)
 
 ### Migrations
 

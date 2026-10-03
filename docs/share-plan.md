@@ -70,9 +70,9 @@ The shared calendar endpoint returns both the owner's shifts AND their labels so
 
 ## Security
 
-- Backend only allows GET for shared calendars (no PUT)
+- Backend only allows GET for shared calendars (no PATCH)
 - `hasAccess` query validates share exists before returning data
-- Existing PUT `/api/calendar` only affects authenticated user's data
+- PATCH `/api/calendar` only affects authenticated user's days
 
 ## Implementation Order
 
