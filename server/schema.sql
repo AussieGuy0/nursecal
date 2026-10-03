@@ -1,3 +1,5 @@
+CREATE INDEX calendar_notes_user_date_idx ON calendar_notes(user_id, date);
+
 CREATE TABLE _migrations (
       name TEXT PRIMARY KEY,
       applied_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -11,6 +13,14 @@ CREATE TABLE calendar_day (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (label_id) REFERENCES labels(id) ON DELETE CASCADE,
   UNIQUE (user_id, date)
+);
+
+CREATE TABLE calendar_notes (
+  user_id INTEGER NOT NULL,
+  date TEXT NOT NULL,
+  note TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1,
+  PRIMARY KEY (user_id, date),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE calendar_shares (

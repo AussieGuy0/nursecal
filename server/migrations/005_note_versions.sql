@@ -1,0 +1,1 @@
+ALTER TABLE calendar_notes ADD COLUMN version INTEGER NOT NULL DEFAULT 1;

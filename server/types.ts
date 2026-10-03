@@ -22,6 +22,12 @@ export interface CalendarDay {
   label_id: string;
 }
 
+export interface CalendarNote {
+  user_id: number;
+  date: string;
+  note: string;
+}
+
 // Frontend-compatible types
 export interface LabelResponse {
   id: string;
@@ -32,6 +38,10 @@ export interface LabelResponse {
 
 export interface ShiftMap {
   [date: string]: string; // date -> labelId
+}
+
+export interface NoteMap {
+  [date: string]: string; // date -> note text
 }
 
 export interface JWTPayload {

@@ -5,7 +5,7 @@ import { jwt } from '@elysiajs/jwt';
 import { openapi, fromTypes } from '@elysiajs/openapi';
 import { createDB, generateId } from './db';
 import { createOTCService, generateOTC } from './otc';
-import { DEFAULT_LABELS, type JWTPayload, type LabelResponse, type ShiftMap } from './types';
+import { DEFAULT_LABELS, type JWTPayload, type LabelResponse, type NoteMap, type ShiftMap } from './types';
 import {
   buildAuthUrl,
   generateOAuthState,
@@ -41,8 +41,16 @@ export function createApp({
   emailService: EmailService;
   emailDomain?: string;
 }) {
-  const { userQueries, labelQueries, calendarDayQueries, shareQueries, oauthStateQueries, googleTokenQueries, db } =
-    createDB(dbPath);
+  const {
+    userQueries,
+    labelQueries,
+    calendarDayQueries,
+    noteQueries,
+    shareQueries,
+    oauthStateQueries,
+    googleTokenQueries,
+    db,
+  } = createDB(dbPath);
   const { storeOTC, getOTC, deleteOTC } = createOTCService(db);
 
   const rateLimiter = createInMemoryRateLimiter({ windowMs: 15 * 60 * 1000, maxAttempts: 5 });
@@ -460,6 +468,47 @@ export function createApp({
             body: t.Record(t.String(), t.Union([t.String(), t.Null()])),
           },
         )
+        .get('/api/notes', ({ user }) => {
+          const rows = noteQueries.findByUserId.all(user.id);
+          return {
+            notes: Object.fromEntries(rows.filter(({ note }) => note).map(({ date, note }) => [date, note])),
+            versions: Object.fromEntries(rows.map(({ date, version }) => [date, version])),
+          };
+        })
+        .put(
+          '/api/notes/:date',
+          ({ user, params, body, set }) => {
+            const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(params.date);
+            const parsedDate = dateMatch
+              ? new Date(Number(dateMatch[1]), Number(dateMatch[2]) - 1, Number(dateMatch[3]))
+              : null;
+            if (
+              !dateMatch ||
+              parsedDate?.getFullYear() !== Number(dateMatch[1]) ||
+              parsedDate?.getMonth() !== Number(dateMatch[2]) - 1 ||
+              parsedDate?.getDate() !== Number(dateMatch[3])
+            ) {
+              set.status = 400;
+              return { error: 'Invalid date' };
+            }
+
+            const note = body.note.trim();
+            const result =
+              body.version === 0
+                ? noteQueries.create.run(user.id, params.date, note)
+                : noteQueries.update.run(note, user.id, params.date, body.version);
+            const current = noteQueries.find.get(user.id, params.date) ?? { note: '', version: 0 };
+            if (result.changes === 0) {
+              set.status = 409;
+              return { error: 'Note changed since it was loaded', ...current };
+            }
+            return { success: true, ...current };
+          },
+          {
+            params: t.Object({ date: t.String() }),
+            body: t.Object({ note: t.String({ maxLength: 1000 }), version: t.Integer({ minimum: 0 }) }),
+          },
+        )
         // Sharing
         .post(
           '/api/shares',
@@ -557,6 +606,7 @@ export function createApp({
             }
 
             const days = calendarDayQueries.findByUserId.all(owner.id);
+            const noteRows = noteQueries.findByUserId.all(owner.id);
             const labels = labelQueries.findByUserId.all(owner.id);
 
             const shifts: ShiftMap = {};
@@ -570,7 +620,11 @@ export function createApp({
               color: l.color,
             }));
 
-            return { shifts, labels: labelResponse };
+            const notes: NoteMap = Object.fromEntries(
+              noteRows.filter(({ note }) => note).map(({ date, note }) => [date, note]),
+            );
+
+            return { shifts, notes, labels: labelResponse };
           },
           {
             params: t.Object({ ownerEmail: t.String() }),

@@ -61,6 +61,20 @@ export function createDB(dbPath: string) {
     delete: db.prepare('DELETE FROM calendar_day WHERE user_id = ? AND date = ?'),
   };
 
+  const noteQueries = {
+    findByUserId: db.prepare<{ date: string; note: string; version: number }, [number]>(
+      'SELECT date, note, version FROM calendar_notes WHERE user_id = ? ORDER BY date',
+    ),
+    find: db.prepare<{ note: string; version: number }, [number, string]>(
+      'SELECT note, version FROM calendar_notes WHERE user_id = ? AND date = ?',
+    ),
+    // Empty notes remain as tombstones so clearing never resets the version.
+    create: db.prepare('INSERT OR IGNORE INTO calendar_notes (user_id, date, note, version) VALUES (?, ?, ?, 1)'),
+    update: db.prepare(
+      'UPDATE calendar_notes SET note = ?, version = version + 1 WHERE user_id = ? AND date = ? AND version = ?',
+    ),
+  };
+
   const oauthStateQueries = {
     insert: db.prepare('INSERT INTO oauth_states (state, user_id, expires_at) VALUES (?, ?, ?)'),
     find: db.prepare<{ state: string; user_id: number; expires_at: number }, [string]>(
@@ -130,7 +144,16 @@ export function createDB(dbPath: string) {
     delete: db.prepare('DELETE FROM google_tokens WHERE user_id = ?'),
   };
 
-  return { db, userQueries, labelQueries, calendarDayQueries, shareQueries, oauthStateQueries, googleTokenQueries };
+  return {
+    db,
+    userQueries,
+    labelQueries,
+    calendarDayQueries,
+    noteQueries,
+    shareQueries,
+    oauthStateQueries,
+    googleTokenQueries,
+  };
 }
 
 // Helper to generate UUIDs for labels
